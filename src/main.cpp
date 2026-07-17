@@ -43,27 +43,15 @@ struct Chunk {
     void Draw(int x, int y) {
 		DrawTexture(texture, x * c_chunkSize, y * c_chunkSize, WHITE);
 	}
-	void UpdateDisplayBuffer() {
+	void UpdateDisplayBuffer(Tile *materials) {
 		containsData = false;
-        const Color colorMap[10] = {
-            BLANK,
-            YELLOW,
-            GRAY,
-            BLUE,
-            BLANK,
-            BLANK,
-            BLANK,
-            BLANK,
-            BLANK,
-            BLANK
-        };
         Color* pixels = (Color*)image.data;
 		for (int x = 0; x < c_chunkSize; x++) {
 			for (int y = 0; y < c_chunkSize; y++) {
 				if (blocks[x][y] != 0) {
 					containsData = true;
 				}
-                pixels[y * c_chunkSize + x] = colorMap[blocks[x][y]];
+                pixels[y * c_chunkSize + x] = materials[blocks[x][y]].color;
 			}
 		}
 		UpdateTexture(texture, image.data);
@@ -355,7 +343,6 @@ public:
         for (auto t : materials) {
             std::cout<<"color: "<<t.color.r<<" "<<t.color.g<<" "<<t.color.b<<" dissolves:"<<t.dissolves<<" falls:"<<t.falls<<" goesBothWays: "<<t.goesBothWays<<" name:"<<t.name<<" weight:"<<t.weight<<"\n";
         }
-        //SetTargetFPS(60);
         
     }
 	void Run() {
@@ -366,7 +353,7 @@ public:
 			for (int x = 0; x < chunksX; x++) {
 				for (int y = 0; y < chunksY; y++) {
 					if (chunkMap[{x,y}].toBeUpdated) {
-						chunkMap[{x, y}].UpdateDisplayBuffer();
+						chunkMap[{x, y}].UpdateDisplayBuffer(materials.data());
 					}
 					if (chunkMap[{x, y}].containsData) {
 						chunkMap[{x, y}].Draw(x, y);
