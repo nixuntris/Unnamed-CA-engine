@@ -1,0 +1,27 @@
+sand:
+weight = 1
+name = sand
+falls = true
+goes_to_sides = false
+color = (256,249,255,255)
+dissolve = None
+stone:
+falls = false
+goes_to_sides = false
+weight = 100
+name = stone
+color = (130,130,130,255)
+dissolve = None
+water:
+falls = true
+goes_to_sides = true
+weight = 2
+name = water
+color = (0,121,241,255)
+dissolve = None
+salt:
+falls = true
+goes_to_sides = false
+weight = 1
+name = salt
+color = (255,255,255,255)
