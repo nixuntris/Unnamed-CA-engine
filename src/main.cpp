@@ -9,27 +9,31 @@ struct Chunk {
     uint8_t bottomChunkDataCopy[c_chunkSize];
 	Image image;
 	Texture texture;
-	bool toBeUpdated = false;
-	bool containsData = false;
+	bool toBeUpdated;
+	bool containsData;
+    int lastUpdate;
 	void Draw(int x, int y) {
 		DrawTexture(texture, x * c_chunkSize, y * c_chunkSize, WHITE);
 	}
 	void UpdateDisplayBuffer() {
 		containsData = false;
 		const Color colorMap[10] = { SKYBLUE,YELLOW,GRAY,BLUE };
+        Color* pixels = (Color*)image.data;
 		for (int x = 0; x < c_chunkSize; x++) {
 			for (int y = 0; y < c_chunkSize; y++) {
 				if (blocks[x][y] != 0) {
 					containsData = true;
 				}
-				ImageDrawPixel(&image, x, y, colorMap[blocks[x][y]]);
+                pixels[y * c_chunkSize + x] = colorMap[blocks[x][y]];
 			}
 		}
 		UpdateTexture(texture, image.data);
 		toBeUpdated = false;
 	}
     void UpdatePhysics() {
-    bool updated[c_chunkSize][c_chunkSize] = {false};
+        lastUpdate+=1;
+        bool updated[c_chunkSize][c_chunkSize] = {false};
+        
         for (int y = c_chunkSize - 1; y >= 0; y--) {
             for (int x = 0; x < c_chunkSize; x++) {
                 if (blocks[x][y] == 1 && !updated[x][y]) {
@@ -40,6 +44,7 @@ struct Chunk {
                             toBeUpdated = true;
                             updated[x][y + 1] = true;
                             updated[x][y] = true;
+                            lastUpdate = 0;
                         }
                     }
                     else {
@@ -47,6 +52,7 @@ struct Chunk {
                             moveDown[x] = 1;
                             blocks[x][y] = 0;
                             toBeUpdated = true;
+                            lastUpdate = 0;
                         }
                     }
                 }
@@ -56,6 +62,9 @@ struct Chunk {
 };
 Chunk GenCleanChunk() {
 	Chunk chunk;
+    chunk.toBeUpdated = false;
+    chunk.containsData = false;
+    chunk.lastUpdate = 100;
 	for (int x = 0; x < c_chunkSize; x++) {
         chunk.moveDown[x] = 0;
         chunk.bottomChunkDataCopy[x] = 0;
@@ -76,7 +85,7 @@ public:
 				chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunk();
 			}
 		}
-        SetTargetFPS(60);
+        //SetTargetFPS(60);
 	}
 	void Run() {
 		while (!WindowShouldClose()) {
@@ -89,22 +98,31 @@ public:
 					}
 					if (chunkMap[{x, y}].containsData) {
 						chunkMap[{x, y}].Draw(x, y);
-					}
+                    }
 					
 				}
 			}
+            
+			for (int x = 0; x < 1920 / c_chunkSize; x++) {
+				for (int y = 0; y < 1080 / c_chunkSize; y++) {
+                    if (chunkMap[{x,y}].containsData) {
+                   //     DrawRectangleLines(x*c_chunkSize,y*c_chunkSize,c_chunkSize,c_chunkSize,BLACK);
+                  //      DrawText(TextFormat("%d", chunkMap[{x,y}].lastUpdate),x*c_chunkSize,y*c_chunkSize,16,BLACK);
+                    }
+                }
+            }
             for (int x = 0; x < 1920 / c_chunkSize; x++) {
                 for (int y = 0; y < 1080 / c_chunkSize; y++) {
-                    if (chunkMap[{x,y}].containsData) {
+                    if (chunkMap[{x,y}].containsData && chunkMap[{x,y}].lastUpdate<30) {
                         for (int cx = 0; cx < c_chunkSize; cx++) {
                             chunkMap[{x,y}].bottomChunkDataCopy[cx] = chunkMap[{x,y+1}].blocks[cx][0];
-                            
                             if (chunkMap[{x,y}].moveDown[cx] != 0) {
                                 chunkMap[{x,y+1}].blocks[cx][0] = 1; 
                                 chunkMap[{x,y}].moveDown[cx] = 0;
                                 chunkMap[{x,y}].toBeUpdated = true;
                                 chunkMap[{x,y+1}].toBeUpdated = true; 
                                 chunkMap[{x,y+1}].containsData = true;
+                                chunkMap[{x,y+1}].lastUpdate = 0;
                             }
                         }
                         
@@ -119,6 +137,7 @@ public:
 						int updateY = y + GetMouseY();
 						chunkMap[{updateX / c_chunkSize, updateY / c_chunkSize}].blocks[updateX % c_chunkSize][updateY % c_chunkSize] = 1;
 						chunkMap[{updateX / c_chunkSize, updateY / c_chunkSize}].toBeUpdated = true;
+                        chunkMap[{updateX / c_chunkSize, updateY / c_chunkSize}].lastUpdate = 0;
 					}
 				}
 			}
