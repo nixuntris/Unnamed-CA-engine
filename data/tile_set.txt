@@ -25,3 +25,4 @@ goes_to_sides = false
 weight = 1
 name = salt
 color = (255,255,255,255)
+dissolve = None

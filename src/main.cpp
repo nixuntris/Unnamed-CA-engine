@@ -2,12 +2,24 @@
 #include <cinttypes>
 #include <map>
 #include <iostream>
-
+#include <fstream>
+#include <string>
+#include <vector>
+#include <map>
+#include <sstream>
 const int c_chunkSize = 64;
 const int c_sleepTime = 30;
 const int c_screenWidth = 1920;
 const int c_screenHeight = 1080;
 
+struct Tile {
+    std::string name;
+    int weight;
+    bool goesBothWays;
+    bool falls;
+    Color color;
+    int dissolves;
+};
 struct Chunk {
 	uint8_t blocks[c_chunkSize][c_chunkSize];
 
@@ -283,14 +295,55 @@ Chunk GenCleanChunk() {
 	chunk.texture = LoadTextureFromImage(chunk.image);
 	return chunk;
 }
-
 class App {
 	std::map<std::tuple<int, int>, Chunk> chunkMap;
 	int editSize = 15;
     int chunksX = (c_screenWidth + c_chunkSize - 1) / c_chunkSize;
     int chunksY = (c_screenHeight + c_chunkSize - 1) / c_chunkSize;
+    std::vector<Tile> materials;
+    std::string trim(const std::string& s) {
+        size_t f = s.find_first_not_of(" \t");
+        size_t l = s.find_last_not_of(" \t");
+        return (f == std::string::npos) ? "" : s.substr(f, (l - f + 1));
+    }
 
+    Color parseColor(std::string s) {
+        s = s.substr(1, s.size() - 2); // Remove parens
+        std::stringstream ss(s);
+        std::string val;
+        std::vector<int> c;
+        while (std::getline(ss, val, ',')) c.push_back(std::stoi(val));
+        return {c[0], c[1], c[2], c[3]};
+    }
 public:
+    void loadMaterials(const std::string& filename) {
+        std::ifstream file(filename);
+        if (!file.is_open()) return;
+
+        std::string line;
+        Tile* current = nullptr;
+
+        while (std::getline(file, line)) {
+            if (line.empty()) continue;
+
+            if (line.back() == ':') {
+                materials.emplace_back();
+                current = &materials.back();
+                current->name = line.substr(0, line.size() - 1);
+                current->dissolves = -1; 
+            } else if (current) {
+                size_t sep = line.find('=');
+                std::string k = trim(line.substr(0, sep));
+                std::string v = trim(line.substr(sep + 1));
+
+                if (k == "weight") current->weight = std::stoi(v);
+                else if (k == "falls") current->falls = (v == "true");
+                else if (k == "goes_to_sides") current->goesBothWays = (v == "true");
+                else if (k == "color") current->color = parseColor(v);
+                else if (k == "dissolve" && v != "None") current->dissolves = std::stoi(v);
+            }
+        }
+    }
 	App() {
 		InitWindow(c_screenWidth, c_screenHeight, "a");
 		for (int x = 0; x < chunksX; x++) {
@@ -298,8 +351,13 @@ public:
 				chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunk();
 			}
 		}
+        loadMaterials("tile_set.txt");
+        for (auto t : materials) {
+            std::cout<<"color: "<<t.color.r<<" "<<t.color.g<<" "<<t.color.b<<" dissolves:"<<t.dissolves<<" falls:"<<t.falls<<" goesBothWays: "<<t.goesBothWays<<" name:"<<t.name<<" weight:"<<t.weight<<"\n";
+        }
         //SetTargetFPS(60);
-	}
+        
+    }
 	void Run() {
         int choosen = 0;
 		while (!WindowShouldClose()) {
