@@ -64,7 +64,6 @@ public:
             world.Draw(player.cameraPosition);
             world.UpdatePhysics(world.materials);
 			player.Control();
-            std::cout<<world.materials.size()<<"\n";
             bool hover = false;
             std::string hoveredOver = "";
             for (int d = 0; d < world.materials.size()-1; d++) {
@@ -94,6 +93,25 @@ public:
                             if (chunkX < 0 || chunkX >= world.chunksX || chunkY < 0 || chunkY >= world.chunksY) continue;
 
                             world.chunkMap[{chunkX, chunkY}].blocks[updateX % c_chunkSize][updateY % c_chunkSize].type = choosen;
+                            world.chunkMap[{chunkX, chunkY}].toBeUpdated = true;
+                            world.chunkMap[{chunkX, chunkY}].lastUpdate = 0;
+                        }
+					}
+				}
+			}
+            else if (IsMouseButtonDown(1) && !hover) {
+				for (int x = 0; x < editSize; x++) {
+					for (int y = 0; y < editSize; y++) {
+						int updateX = x + GetMouseX()+player.cameraPosition.x;
+						int updateY = y + GetMouseY()+player.cameraPosition.y;
+                        if (updateX>=0 && updateY>=0 && updateX<1920 && updateY<1080) {
+                                
+                            if (updateX < 0 || updateY < 0) continue;
+                            int chunkX = updateX / c_chunkSize;
+                            int chunkY = updateY / c_chunkSize;
+                            if (chunkX < 0 || chunkX >= world.chunksX || chunkY < 0 || chunkY >= world.chunksY) continue;
+
+                            world.chunkMap[{chunkX, chunkY}].blocks[updateX % c_chunkSize][updateY % c_chunkSize].type = 0;
                             world.chunkMap[{chunkX, chunkY}].toBeUpdated = true;
                             world.chunkMap[{chunkX, chunkY}].lastUpdate = 0;
                         }

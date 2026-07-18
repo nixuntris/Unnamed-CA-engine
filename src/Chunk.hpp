@@ -12,11 +12,14 @@ const int c_screenHeight = 1080;
 struct Tile {
     std::string name;
     int weight;
+    bool gas;
     bool goesBothWays;
     bool falls;
     Color color;
     int dissolves;
     bool fluid;
+    int replaces;
+    int leaveBehind;
 };
 struct Cell {
     uint8_t type;
@@ -231,22 +234,22 @@ struct Chunk {
         return false;
     }
     bool SurroundedByDissolvingTiles(int x, int y, int dissolvingTile) {
-    auto checkPosition = [&](int checkX, int checkY) -> bool {
-        if (checkX >= 0 && checkX < c_chunkSize && checkY >= 0 && checkY < c_chunkSize) {
-            return blocks[checkX][checkY].type == dissolvingTile;
-        }
-        if (checkY < 0) return topChunkDataCopy[checkX].type == dissolvingTile;
-        if (checkY >= c_chunkSize) return bottomChunkDataCopy[checkX].type == dissolvingTile;
-        if (checkX < 0) return leftChunkDataCopy[checkY].type == dissolvingTile;
-        if (checkX >= c_chunkSize) return rightChunkDataCopy[checkY].type == dissolvingTile;
-        
-        return false;
-    };
-    return checkPosition(x, y - 1) && // UP
-           checkPosition(x, y + 1) && // DOWN
-           checkPosition(x - 1, y) && // LEFT
-           checkPosition(x + 1, y);   // RIGHT
-}
+        auto checkPosition = [&](int checkX, int checkY) -> bool {
+            if (checkX >= 0 && checkX < c_chunkSize && checkY >= 0 && checkY < c_chunkSize) {
+                return blocks[checkX][checkY].type == dissolvingTile;
+            }
+            if (checkY < 0) return topChunkDataCopy[checkX].type == dissolvingTile;
+            if (checkY >= c_chunkSize) return bottomChunkDataCopy[checkX].type == dissolvingTile;
+            if (checkX < 0) return leftChunkDataCopy[checkY].type == dissolvingTile;
+            if (checkX >= c_chunkSize) return rightChunkDataCopy[checkY].type == dissolvingTile;
+            
+            return false;
+        };
+        return checkPosition(x, y - 1) || // UP
+            checkPosition(x, y + 1) || // DOWN
+            checkPosition(x - 1, y) || // LEFT
+            checkPosition(x + 1, y);   // RIGHT
+    }
     inline void UpdatePhysics(std::vector<Tile>&tiles) {
         lastUpdate++;
 
@@ -257,9 +260,8 @@ struct Chunk {
                     continue;
                 if (tiles[type].dissolves!=-1 && SurroundedByDissolvingTiles(x,y,tiles[type].dissolves)) {
                     
-                    blocks[x][y].type = 0;
-                    blocks[x][y].updated = true;
-                    
+                    blocks[x][y].type = tiles[type].leaveBehind;
+                    type = blocks[x][y].type;
                 }
                 else if (tiles[type].fluid) { 
                     if (!MoveDown(x, y,tiles,false)) {
@@ -297,6 +299,16 @@ struct Chunk {
                     continue;
                 }
                 
+                else if (tiles[type].gas) {
+
+                    if (!MoveUp(x, y,tiles,true)) {
+                        if (GetRandomValue(0,1))
+                            MoveLeft(x,y,tiles,true);
+                        else
+                            MoveRight(x,y,tiles,true);
+                    }
+                    continue;
+                }
             }
         }
     }
@@ -411,15 +423,21 @@ struct World {
                 current = &materials.back();
                 current->name = line.substr(0, line.size() - 1);
                 current->dissolves = -1; 
+                current->gas = false;
             } else if (current) {
                 size_t sep = line.find('=');
                 std::string k = trim(line.substr(0, sep));
                 std::string v = trim(line.substr(sep + 1));
                 if (k == "weight") current->weight = std::stoi(v);
                 else if (k == "falls") current->falls = (v == "true");
+                else if (k == "gas") current->gas = (v == "true");
                 else if (k == "goes_to_sides") current->goesBothWays = (v == "true");
                 else if (k == "color") current->color = parseColor(v);
                 else if (k == "dissolve" && v != "None") current->dissolves = std::stoi(v);
+                else if (k == "leaveBehind" && v != "None") {
+                    current->leaveBehind = std::stoi(v);
+                    std::cout<<current->leaveBehind<<"\n";
+                }
                 else if (k == "fluid" && v != "None") current->fluid = (v == "true");
             }
         }

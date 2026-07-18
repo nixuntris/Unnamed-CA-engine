@@ -3,8 +3,11 @@ weight = 0
 falls = false
 goes_to_sides = false
 fluid = false
+gas = false
 dissolve = None
+leaveBehind = 0
 color = (1024,191,255,255)
+
 sand:
 weight = 3
 name = sand
@@ -13,14 +16,20 @@ goes_to_sides = false
 color = (194,178,128,255)
 dissolve = None
 fluid = false
+gas = false
+leaveBehind = 0
+
 stone:
 falls = false
 goes_to_sides = false
 weight = 100
 name = stone
 fluid = false
+gas = false
 color = (130,130,130,255)
 dissolve = None
+leaveBehind = 0
+
 water:
 falls = true
 fluid = true
@@ -29,6 +38,9 @@ weight = 2
 name = water
 color = (0,121,241,255)
 dissolve = None
+gas = false
+leaveBehind = 0
+
 salt:
 falls = true
 goes_to_sides = false
@@ -37,3 +49,39 @@ name = salt
 color = (255,255,255,255)
 dissolve = 3
 fluid = false
+gas = false
+leaveBehind = 0
+
+wood:
+falls = false
+goes_to_sides = false
+weight = 100
+name = wood
+fluid = false
+color = (101,67,33,255)
+dissolve = None
+gas = false
+leaveBehind = 0
+
+fire:
+falls = true
+goes_to_sides = false
+weight = 100
+name = fire
+fluid = false
+color = (255,140,0,255)
+dissolve = 3
+replace = wood
+gas = false
+leaveBehind = 7
+
+smoke:
+weight = 0
+name = smoke
+falls = false
+goes_to_sides = false
+color = (200,200,200,255)
+dissolve = None
+fluid = false
+gas = true
+leaveBehind = 0
