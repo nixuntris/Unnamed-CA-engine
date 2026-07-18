@@ -1,32 +1,39 @@
+air:
+weight = 0
+falls = false
+goes_to_sides = false
+fluid = false
+dissolve = None
+color = (1024,191,255,255)
 sand:
-block_id = 1
 weight = 1
 name = sand
 falls = true
 goes_to_sides = false
-color = (256,249,255,255)
+color = (194,178,128,255)
 dissolve = None
+fluid = false
 stone:
-block_id = 2
 falls = false
 goes_to_sides = false
 weight = 100
 name = stone
+fluid = false
 color = (130,130,130,255)
 dissolve = None
 water:
-block_id = 3
 falls = true
+fluid = true
 goes_to_sides = true
 weight = 2
 name = water
 color = (0,121,241,255)
 dissolve = None
 salt:
-block_id = 4
 falls = true
 goes_to_sides = false
 weight = 1
 name = salt
 color = (255,255,255,255)
 dissolve = None
+fluid = false
