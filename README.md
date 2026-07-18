@@ -4,22 +4,22 @@ A physics engine that implements celullar automata for per pixel simulation insp
 ## Features
 It utilizes a little descriptor system that has an demo stored in tile_set.txt to define how each cell behaves. You can combine characteristics to make new particles.
 # Example usage:
-sand:
-weight = 3
-name = sand
-falls = true
-goes_to_sides = false
-color = (194,178,128,255)
-dissolve = None
-fluid = false
-stone:
-falls = false
-goes_to_sides = false
-weight = 100
-name = stone
-fluid = false
-color = (130,130,130,255)
-dissolve = None
+    sand:
+    weight = 3
+    name = sand
+    falls = true
+    goes_to_sides = false
+    color = (194,178,128,255)
+    dissolve = None
+    fluid = false
+    stone:
+    falls = false
+    goes_to_sides = false
+    weight = 100
+    name = stone
+    fluid = false
+    color = (130,130,130,255)
+    dissolve = None
 
 It's case sensitive and space sensitive
 
