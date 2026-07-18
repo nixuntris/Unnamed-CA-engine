@@ -19,12 +19,14 @@ struct Tile {
     int dissolves;
     bool fluid;
     int replaces;
+    int lifeTime;
     int leaveBehind;
 };
 struct Cell {
     uint8_t type;
     uint8_t direction;
     bool updated;
+    int lifeTime;
 };
 struct Chunk {
 	Cell blocks[c_chunkSize][c_chunkSize];
@@ -265,6 +267,16 @@ struct Chunk {
                 uint8_t type = blocks[x][y].type;
                 if (blocks[x][y].updated || type == 0)
                     continue;
+                if (tiles[type].lifeTime!=-1) {
+                    if (blocks[x][y].lifeTime<=0) {
+                            
+                        blocks[x][y].type = tiles[type].leaveBehind;
+                        type = blocks[x][y].type;
+                        blocks[x][y].lifeTime = tiles[type].lifeTime;
+                    }
+                    blocks[x][y].lifeTime--;
+
+                }
                 if (tiles[type].dissolves!=-1 && SurroundedByDissolvingTiles(x,y,tiles[type].dissolves)) {
                     
                     blocks[x][y].type = tiles[type].leaveBehind;
@@ -345,15 +357,18 @@ Chunk GenCleanChunk(int cx, int cy) {
         chunk.moveDown[i].updated = false;
         
         chunk.moveUp[i].type = 0;
+        chunk.moveUp[i].lifeTime = -1;
         chunk.moveUp[i].direction = 0;
         chunk.moveUp[i].updated = false;
         
         chunk.moveLeft[i].type = 0;
         chunk.moveLeft[i].direction = 0;
+        chunk.moveLeft[i].lifeTime = -1;
         chunk.moveLeft[i].updated = false;
         
         chunk.moveRight[i].type = 0;
         chunk.moveRight[i].direction = 0;
+        chunk.moveRight[i].lifeTime = -1;
         chunk.moveRight[i].updated = false;
         
         chunk.topChunkDataCopy[i].type = 0;
@@ -441,6 +456,7 @@ struct World {
                 else if (k == "goes_to_sides") current->goesBothWays = (v == "true");
                 else if (k == "color") current->color = parseColor(v);
                 else if (k == "dissolve" && v != "None") current->dissolves = std::stoi(v);
+                else if (k == "lifeTime" && v != "None") current->lifeTime = std::stoi(v);
                 else if (k == "leaveBehind" && v != "None") {
                     current->leaveBehind = std::stoi(v);
                     std::cout<<current->leaveBehind<<"\n";

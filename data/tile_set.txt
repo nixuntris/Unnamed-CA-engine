@@ -80,7 +80,7 @@ dissolve = 3
 replace = 5
 gas = false
 leaveBehind = 7
-lifeTime = 5
+lifeTime = 50
 
 smoke:
 weight = 0

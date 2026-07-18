@@ -112,7 +112,7 @@ public:
                             int chunkX = updateX / c_chunkSize;
                             int chunkY = updateY / c_chunkSize;
                             if (chunkX < 0 || chunkX >= world.chunksX || chunkY < 0 || chunkY >= world.chunksY) continue;
-
+                            world.chunkMap[{chunkX, chunkY}].blocks[updateX % c_chunkSize][updateY % c_chunkSize].lifeTime = world.materials[choosen].lifeTime;
                             world.chunkMap[{chunkX, chunkY}].blocks[updateX % c_chunkSize][updateY % c_chunkSize].type = choosen;
                             world.chunkMap[{chunkX, chunkY}].toBeUpdated = true;
                             world.chunkMap[{chunkX, chunkY}].lastUpdate = 0;
