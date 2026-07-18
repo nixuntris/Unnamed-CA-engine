@@ -35,6 +35,8 @@ struct Chunk {
     Cell leftChunkDataCopy[c_chunkSize]; //X- copy
     Cell rightChunkDataCopy[c_chunkSize]; //X+ copy
 
+    Cell swapDown[c_chunkSize];   // For weight-based swaps going down
+    Cell swapUp[c_chunkSize];     // For weight-based swaps going up
     Image image;
 	Texture texture;
 	bool toBeUpdated;
@@ -95,11 +97,11 @@ struct Chunk {
                 return true;
             }
             else if (bottomChunkDataCopy[x].type != 0 && bottomChunkDataCopy[x].type != 255 && 
-                    moveDown[x].type == 0 && moveByWeight && !bottomChunkDataCopy[x].updated && 
+                    moveDown[x].type == 0 && swapDown[x].type == 0 && moveByWeight && 
+                    !bottomChunkDataCopy[x].updated && 
                     tiles[bottomChunkDataCopy[x].type].weight < tiles[blocks[x][y].type].weight) {
-                Cell oldcell = bottomChunkDataCopy[x];
-                bottomChunkDataCopy[x] = blocks[x][y];
-                blocks[x][y] = oldcell;
+                swapDown[x] = blocks[x][y];
+                blocks[x][y] = bottomChunkDataCopy[x];
                 toBeUpdated = true;
                 blocks[x][y].updated = true;
                 lastUpdate = 0;
@@ -231,11 +233,11 @@ struct Chunk {
                 // Sand
                 case 1:
                 {
-                    if (!MoveDown(x, y,tiles,false)) {
+                    if (!MoveDown(x, y,tiles,true)) {
                         if (GetRandomValue(0,1))
-                            MoveLeft(x,y,tiles,false);
+                            MoveLeft(x,y,tiles,true);
                         else
-                            MoveRight(x,y,tiles,false);
+                            MoveRight(x,y,tiles,true);
                     }
                     break;
                 }
@@ -253,28 +255,6 @@ struct Chunk {
                             break;
                         }
                     }
-                    for (int i = 0; i < 5; i++) {
-                        if (blocks[x][y].direction==0)
-                        {
-                            if (!MoveLeft(x, y,tiles,false)) 
-                            {
-                                blocks[x][y].direction = 1;
-                                break;
-                                break;
-                            }   
-                        }
-                        else
-                        {
-                            if (!MoveRight(x, y,tiles,false))
-                            {
-                                blocks[x][y].direction = 0;
-                                break;
-                                break;
-                            }
-                        }
-                    }
-
-
                     break;
                 }
                 }
@@ -391,8 +371,23 @@ struct World {
                         for (int dy = 0; dy < c_chunkSize; dy++)
                             chunkMap[{x,y}].blocks[dx][dy].updated = false;
                     chunkMap[{x,y}].UpdatePhysics(tiles);
+                    //swaps and moves the data
                     for (int cx = 0; cx < c_chunkSize; cx++) {
                             
+                        if (chunkMap[{x,y}].swapDown[cx].type != 0 && y+1 < chunksY) {
+                            if (chunkMap[{x,y+1}].blocks[cx][0].type != 0 && 
+                                chunkMap[{x,y+1}].blocks[cx][0].type != 255) {
+                                Cell temp = chunkMap[{x,y+1}].blocks[cx][0];
+                                chunkMap[{x,y+1}].blocks[cx][0] = chunkMap[{x,y}].swapDown[cx];
+                                chunkMap[{x,y}].blocks[cx][c_chunkSize-1] = temp;
+                                
+                                chunkMap[{x,y}].toBeUpdated = true;
+                                chunkMap[{x,y+1}].toBeUpdated = true;
+                                chunkMap[{x,y}].lastUpdate = 0;
+                                chunkMap[{x,y+1}].lastUpdate = 0;
+                            }
+                            chunkMap[{x,y}].swapDown[cx].type = 0;
+                        }
                         chunkMap[{x,y}].bottomChunkDataCopy[cx].updated = false;
                         chunkMap[{x,y}].topChunkDataCopy[cx].updated = false;
                         chunkMap[{x,y}].leftChunkDataCopy[cx].updated = false;
@@ -449,9 +444,19 @@ struct World {
                             }
                         }
                     }
-
                 }
             }
+        }
+        
+        for (int x = 0; x < chunksX; x++) {
+            for (int y = 0; y < chunksY; y++) {
+                for (int i = 0; i < c_chunkSize; i++) {
+                    chunkMap[{x,y}].moveDown[i].type = 0;
+                    chunkMap[{x,y}].moveUp[i].type = 0;
+                    chunkMap[{x,y}].moveLeft[i].type = 0;
+                    chunkMap[{x,y}].moveRight[i].type = 0;
+                    }
+                }
         }
     }
 };

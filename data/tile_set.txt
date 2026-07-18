@@ -6,7 +6,7 @@ fluid = false
 dissolve = None
 color = (1024,191,255,255)
 sand:
-weight = 1
+weight = 3
 name = sand
 falls = true
 goes_to_sides = false
