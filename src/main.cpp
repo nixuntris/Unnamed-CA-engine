@@ -135,7 +135,7 @@ public:
 	App() {
 		InitWindow(c_screenWidth, c_screenHeight, "a");
         Init();   
-        SetTargetFPS(60);
+        //SetTargetFPS(60);
     }
 	void Run() {
 		while (!WindowShouldClose()) {
@@ -151,7 +151,8 @@ public:
             );
             world.Draw(player.cameraPosition,player.cameraZoom);
             world.UpdatePhysics(world.materials);
-			player.Control();
+			world.DebugActivityDisplay(player.cameraPosition,player.cameraZoom);
+            player.Control();
             player.Editor(&world);
             DrawFPS(0, 0);
 			EndDrawing();

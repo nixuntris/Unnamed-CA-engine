@@ -408,13 +408,26 @@ struct World {
 			}
 		}
     }
-    void DebugActivityDisplay() {
-        
-		for (int x = 0; x < chunksX; x++) {
-			for (int y = 0; y < chunksY; y++) {
+    void DebugActivityDisplay(Vector2 cameraPosition, float zoom) {
+        for (int x = 0; x < chunksX; x++) {
+            for (int y = 0; y < chunksY; y++) {
                 if (chunkMap[{x,y}].containsData) {
-                    DrawRectangleLines(x*c_chunkSize,y*c_chunkSize,c_chunkSize,c_chunkSize,BLACK);
-                    DrawText(TextFormat("%d", chunkMap[{x,y}].lastUpdate),x*c_chunkSize,y*c_chunkSize,16,BLACK);
+                    float screenX = (x * c_chunkSize - cameraPosition.x) * zoom;
+                    float screenY = (y * c_chunkSize - cameraPosition.y) * zoom;
+                    float size = c_chunkSize * zoom;
+                    
+                    if (screenX + size > 0 && screenX < c_screenWidth &&
+                        screenY + size > 0 && screenY < c_screenHeight) {
+                        
+                        DrawRectangleLines(screenX, screenY, size, size, BLACK);
+                        
+                        int fontSize = (int)(16 * zoom);
+                        if (fontSize < 8) fontSize = 8;
+                        if (fontSize > 32) fontSize = 32;
+                        
+                        DrawText(TextFormat("%d", chunkMap[{x,y}].lastUpdate),
+                                screenX, screenY, fontSize, BLACK);
+                    }
                 }
             }
         }
