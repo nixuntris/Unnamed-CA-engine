@@ -43,10 +43,10 @@ struct Chunk {
 	bool toBeUpdated;
 	bool containsData;
     int lastUpdate;
-
+    int hash[c_chunkSize][c_chunkSize];
     void Draw(int x, int y, Vector2 cameraPosition) {
 		DrawTexture(texture, x * c_chunkSize-cameraPosition.x, y * c_chunkSize-cameraPosition.y, WHITE);
-	}
+	}    
 	void UpdateDisplayBuffer(std::vector<Tile> &tiles) {
 		containsData = false;
         Color* pixels = (Color*)image.data;
@@ -59,7 +59,20 @@ struct Chunk {
                     pixels[y * c_chunkSize + x] = SKYBLUE;
                 }
                 else if (blocks[x][y].type<tiles.size()) {
-                    pixels[y * c_chunkSize + x] = tiles[blocks[x][y].type].color;
+                    
+                    Color color = tiles[blocks[x][y].type].color;
+                    if (hash[x][y]&1) {
+                        color.r*=0.95;
+                        color.g*=0.95;
+                        color.b*=0.95;
+                    }
+                    else if (hash[x][y]%3==0) {
+                        color.r*=1.05;
+                        color.g*=1.05;
+                        color.b*=1.05;
+                    }
+                    pixels[y * c_chunkSize + x] = color;
+                    
                 }
 			}
 		}
@@ -270,7 +283,13 @@ struct Chunk {
         }
     }
 };
-Chunk GenCleanChunk() {
+
+unsigned int hash(unsigned int x, unsigned int y) {
+    unsigned int h = x * 374761393u + y * 668265263u;
+    h = (h ^ (h >> 13)) * 1274126177u;
+    return h ^ (h >> 16);
+}
+Chunk GenCleanChunk(int cx, int cy) {
     Chunk chunk;
     chunk.toBeUpdated = false;
     chunk.containsData = false;
@@ -280,6 +299,7 @@ Chunk GenCleanChunk() {
             chunk.blocks[x][y].type = 0;
             chunk.blocks[x][y].direction = GetRandomValue(0, 1);
             chunk.blocks[x][y].updated = false;
+            chunk.hash[x][y] = hash(x+cx*c_chunkSize,y+cy*c_chunkSize);
         }
     }
     for (int i = 0; i < c_chunkSize; i++) {
@@ -353,7 +373,7 @@ struct World {
         
 		for (int x = 0; x < chunksX; x++) {
 			for (int y = 0; y < chunksY; y++) {
-				 chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunk();
+				 chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunk(x*c_chunkSize,y*c_chunkSize);
 			}
 		}
         loadMaterials("data/tile_set.txt");
