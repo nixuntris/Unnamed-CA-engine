@@ -143,6 +143,8 @@ struct Ball {
     Vector2 velocity;
     float radius;
     uint8_t type;
+    bool isStatic;
+    
     void Draw(Vector2 cameraPosition, float zoom) {
         
         float screenX = (position.x-cameraPosition.x)*zoom;
@@ -151,25 +153,39 @@ struct Ball {
         float screenRadius = radius*zoom;
         DrawRectangle(screenX,screenY,screenRadius,screenRadius,RED);
     }
-    void Update(World *world) {
-        velocity.y += 1;
-        if (velocity.y>10) velocity.y = 10;
-        position.x += velocity.x;
-        if (IsPositionSolid(world,position.x+1,position.y) || IsPositionSolid(world,position.x-1,position.y)) {
-            position.x -= velocity.x;
-            velocity.x *= -0.3f;
-            if (fabs(velocity.x) < 0.5f) velocity.x = 0;
-        }
-        position.y += velocity.y;
-        if (IsPositionSolid(world,position.x,position.y+1) || IsPositionSolid(world,position.x,position.y-1)) {
-            position.y -= velocity.y;
-            velocity.y *= -0.3f;
-            if (fabs(velocity.y)<1.0f) {
-                velocity.x *= 0.95f;
-            }
-        }
-    }   
     
+    void Update(World *world) {
+        if (isStatic) return;
+        velocity.y += 1;
+        velocity.x = Clamp(velocity.x,-1,1);
+        velocity.y = Clamp(velocity.y,-1,1);
+        if (velocity.y>10) velocity.y = 10;
+        if (fabs(velocity.y)<1.0f) {
+            velocity.x *= 0.95f;
+        }
+        if (position.x < radius) {
+            position.x = radius;
+            velocity.x *= -0.1f;
+        }
+
+        if (position.x + radius > 1920) {
+            position.x = 1920 - radius;
+            velocity.x *= -0.1f;
+        }
+        if (position.y < radius) {
+            position.y = radius;
+            velocity.y *= -0.1f;
+        }
+        if (position.y + radius > 1080) {
+            position.y = 1080 - radius;
+            velocity.y *= -0.1f;
+            velocity.x *= 0.1f;
+            if (fabs(velocity.y) < 0.5f)
+                velocity.y = 0;
+        }
+        position.x += velocity.x;
+        position.y += velocity.y;
+    }   
     void ResolveCollisionWithBall(Ball& other) {
         float dx = other.position.x - position.x;
         float dy = other.position.y - position.y;
@@ -178,139 +194,71 @@ struct Ball {
         
         if (distSq < minDist * minDist && distSq > 0.0001f) {
             float dist = sqrtf(distSq);
-            float overlap = (minDist - dist) * 0.5f;
+            float overlap = minDist - dist;
             float nx = dx / dist;
             float ny = dy / dist;
             
-            position.x -= nx * overlap;
-            position.y -= ny * overlap;
-            other.position.x += nx * overlap;
-            other.position.y += ny * overlap;
-            
-            float dvx = velocity.x - other.velocity.x;
-            float dvy = velocity.y - other.velocity.y;
-            float impact = dvx * nx + dvy * ny;
-            
-            if (impact < 0) {
-                float impulse = -(1.0f + 0.8) * impact / 2.0f;
-                velocity.x += impulse * nx;
-                velocity.y += impulse * ny;
-                other.velocity.x -= impulse * nx;
-                other.velocity.y -= impulse * ny;
+            if (other.isStatic) {
+                position.x -= nx * overlap;
+                position.y -= ny * overlap;
+                
+                float dotProduct = velocity.x * nx + velocity.y * ny;
+                if (dotProduct < 0) {
+                    velocity.x -= 2.0f * dotProduct * nx * 0.3f;
+                    velocity.y -= 2.0f * dotProduct * ny * 0.3f;
+                }
+            }
+            else {
+                position.x -= nx * overlap * 0.5f;
+                position.y -= ny * overlap * 0.5f;
+                other.position.x += nx * overlap * 0.5f;
+                other.position.y += ny * overlap * 0.5f;
+                
+                float dvx = velocity.x - other.velocity.x;
+                float dvy = velocity.y - other.velocity.y;
+                float impact = dvx * nx + dvy * ny;
+                
+                if (impact > 0) {
+                    float restitution = 0.3f;
+                    float impulse = (1.0f + restitution) * impact * 0.5f;
+                    velocity.x -= impulse * nx;
+                    velocity.y -= impulse * ny;
+                    other.velocity.x += impulse * nx;
+                    other.velocity.y += impulse * ny;
+                }
             }
         }
     }
-
 };
-class PhysicalObject {
-    Image image;
-    Texture texture;
-    float rotation;
-    Vector2 position;
-    Vector2 velocity;
-    std::vector<Ball> balls;
-    public:
-        uint8_t grid[c_chunkSize][c_chunkSize];
-            
-        inline Vector2 LocalToWorld(Vector2 localPos) {
-            float cosA = cosf(rotation * DEG2RAD);
-            float sinA = sinf(rotation * DEG2RAD);
-            return {
-                position.x + localPos.x * cosA - localPos.y * sinA,
-                position.y + localPos.x * sinA + localPos.y * cosA
-            };
-        }
-        
-        void Init(std::vector<Tile> &tiles, Vector2 position, float rotate) {
-            image = GenImageColor(c_chunkSize,c_chunkSize,BLANK);
-            for (int x = 0; x < c_chunkSize; x++) {
-                for (int y= 0; y < c_chunkSize; y++) {
-                    if (grid[x][y]!=0) {
-                        Ball ball;
-                        ball.position = LocalToWorld({
-                            (float)(x - c_chunkSize/2), 
-                            (float)(y - c_chunkSize/2)
-                        });
-                        ball.velocity = {0, 0};
-                        ball.radius = 0.4f;
-                        ball.type = grid[x][y];
-                        balls.push_back(ball);
-                    }
-                    ImageDrawPixel(&image,x,y,tiles[grid[x][y]].color);
-                }
-            }
-            this->rotation = rotate;
-            this->position = position;
-            this->texture = LoadTextureFromImage(image);
-            
-        }
-        void CalculateVelocityFromBalls() {
-            if (balls.empty()) {
-                velocity = {0,0};
-                return;
-            }
-            velocity = {0,0};
-            for (const auto& ball : balls) {
-                velocity.x += ball.velocity.x;
-                velocity.y += ball.velocity.y;
-            }
-            velocity.x /= balls.size();
-            velocity.y /= balls.size();
-        }
-        void Update(World *world) {
-            position.y += velocity.y;
-            position.x += velocity.x;
-            for (auto &t : balls) {
-                t.Update(world);
-            }
-            CalculateVelocityFromBalls();
-            std::cout<<velocity.x<<" "<<velocity.y<<"\n";
-            int r = 0;
-            for (int x = 0; x < c_chunkSize; x++) {
-                for (int y= 0; y < c_chunkSize; y++) {
-                    if (grid[x][y]!=0) {
-                        balls[r].position = LocalToWorld({
-                            (float)(x - c_chunkSize/2), 
-                            (float)(y - c_chunkSize/2)
-                        });
-                    }
-                    r++;
-                }
-            }
-        }
-        void Draw(Vector2 cameraPosition, float zoom) {
-            float worldX = position.x-cameraPosition.x;
-            float worldY = position.y-cameraPosition.y;
-            Rectangle dest = {
-                worldX*zoom,
-                worldY*zoom,
-                texture.width * zoom,
-                texture.height * zoom
-            };
-            Rectangle source = {0,0, texture.width,texture.height};
-            Vector2 origin = {texture.width*0.5f,texture.height*0.5f};
-            DrawTexturePro(texture,source,dest,origin,rotation,WHITE);
-            for (const auto& ball : balls) {
-                float screenX = (ball.position.x-cameraPosition.x)*zoom;
-                float screenY = (ball.position.y-cameraPosition.y)*zoom;
-                float screenRadius = ball.radius*zoom;
-                DrawCircle(screenX,screenY,screenRadius,RED);
-            }
-        }
+struct PhysicsChunk {
+    std::vector<Ball> staticBalls;
 };
 class App {
     World world;
     Player player;
-    std::vector<PhysicalObject> objects;
     std::vector<Ball> balls;
+    std::map<std::tuple<int, int>, PhysicsChunk> staticBalls;
 public:
     
     void Init() {
         
 		for (int x = 0; x < world.chunksX; x++) {
 			for (int y = 0; y < world.chunksY; y++) {
-				 world.chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunkTerrain(x*c_chunkSize,y*c_chunkSize);
-			}
+				world.chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunkTerrain(x*c_chunkSize,y*c_chunkSize);
+                staticBalls[std::tuple<int,int>{x,y}].staticBalls.reserve(c_chunkSize*c_chunkSize);
+                for (int cx = 0; cx < c_chunkSize; cx++) {
+                    for (int cy = 0; cy < c_chunkSize; cy++) {
+                        if (world.chunkMap[std::tuple<int,int>{x,y}].blocks[cx][cy].type!=0) {
+                            Ball ball;
+                            ball.isStatic = true;
+                            ball.position = {(float)cx+x*c_chunkSize,(float)cy+y*c_chunkSize};
+                            ball.radius = 1;
+                            ball.velocity = {0,0};
+                            staticBalls[std::tuple<int,int>{x,y}].staticBalls.push_back(ball);
+                        }
+                    }   
+                }    
+            }
 		}
         world.loadMaterials("data/tile_set.txt");
     }
@@ -330,18 +278,9 @@ public:
                     (mousePos.x / player.cameraZoom) +  player.cameraPosition.x,
                     (mousePos.y /  player.cameraZoom) +  player.cameraPosition.y
                 };
-           /*     PhysicalObject objectrs;
-                for (int x = 0; x < c_chunkSize; x++) {
-                    for (int y = 0; y < c_chunkSize; y++) {
-                        objectrs.grid[x][y] = 1;
-
-                    }   
-                }
-                objectrs.Init(world.materials,worldPos,0);
-                objects.push_back(objectrs);*/
                 Ball ball;
                 ball.position = worldPos;
-                ball.radius = 2;
+                ball.radius = 4;
                 ball.type = 1;
                 ball.velocity = {0,0};
                 balls.push_back(ball);
@@ -358,24 +297,34 @@ public:
             );
             world.Draw(player.cameraPosition,player.cameraZoom);
             world.UpdatePhysics(world.materials);
-			world.DebugActivityDisplay(player.cameraPosition,player.cameraZoom);
-            for (auto &t : objects) {
-                t.Update(&world);
-            }
-            int id = 0;
-            for (auto &t : balls) {
-                for (int r = 0; r < balls.size(); r++) {
-                    if (id!=r) t.ResolveCollisionWithBall(balls[r]);
+			//world.DebugActivityDisplay(player.cameraPosition,player.cameraZoom);
+            for (int i = 0; i < 8; i++) {
+
+                int id = 0;
+                
+                for (auto &t : balls) {
+                    int cx = t.position.x/c_chunkSize;
+                    int cy = t.position.y/c_chunkSize;
+                    for (int x = -1; x <= 1; x++) {
+                        for (int y = -1; y <= 1; y++) {
+                        
+                            for (auto k : staticBalls[std::tuple<int,int>{cx+x,cy+y}].staticBalls) {
+                                t.ResolveCollisionWithBall(k);
+                            }
+                        }   
+                    }
+                    for (int r = id; r < balls.size(); r++) {
+                        if (id!=r) t.ResolveCollisionWithBall(balls[r]);
+                    }
+                    id++;
                 }
-                t.Update(&world);
-                id++;
+                for (auto &t : balls) {
+                    t.Update(&world);
+                
+                }
             }
             for (auto &t : balls) {
-                t.Draw(player.cameraPosition,player.cameraZoom);
-            
-            }
-            for (auto &t : objects) {
-                t.Draw(player.cameraPosition,player.cameraZoom);
+               t.Draw(player.cameraPosition,player.cameraZoom);
             }
             player.Control();
             
