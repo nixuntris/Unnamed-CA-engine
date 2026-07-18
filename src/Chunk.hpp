@@ -20,6 +20,7 @@ struct Tile {
 struct Cell {
     uint8_t type;
     uint8_t direction;
+    bool updated;
 };
 struct Chunk {
 	Cell blocks[c_chunkSize][c_chunkSize];
@@ -39,7 +40,6 @@ struct Chunk {
 	bool toBeUpdated;
 	bool containsData;
     int lastUpdate;
-	bool updated[c_chunkSize][c_chunkSize] = {false};
 
     void Draw(int x, int y) {
 		DrawTexture(texture, x * c_chunkSize, y * c_chunkSize, WHITE);
@@ -65,22 +65,22 @@ struct Chunk {
 	}
     bool MoveDown(int x, int y, std::vector<Tile> &tiles, bool moveByWeight=false) {
         if (y + 1 < c_chunkSize) {
-            if (blocks[x][y + 1].type == 0 && !updated[x][y + 1]) {
+            if (blocks[x][y + 1].type == 0 && !blocks[x][y + 1].updated) {
                 blocks[x][y + 1] = blocks[x][y];
                 blocks[x][y].type = 0;
                 toBeUpdated = true;
-                updated[x][y + 1] = true;
-                updated[x][y] = true;
+                blocks[x][y + 1].updated = true;
+                blocks[x][y].updated = true;
                 lastUpdate = 0;
                 return true;
             }
-            else if (blocks[x][y+1].type!=0 && blocks[x][y+1].type!=255 && !updated[x][y+1] && moveByWeight && tiles[blocks[x][y+1].type].weight<tiles[blocks[x][y].type].weight) {
+            else if (blocks[x][y+1].type!=0 && blocks[x][y+1].type!=255 && !blocks[x][y+1].updated && moveByWeight && tiles[blocks[x][y+1].type].weight<tiles[blocks[x][y].type].weight) {
                 Cell oldcell = blocks[x][y+1];
                 blocks[x][y + 1] = blocks[x][y];
                 blocks[x][y] = oldcell;
                 toBeUpdated = true;
-                updated[x][y + 1] = true;
-                updated[x][y] = true;
+                blocks[x][y + 1].updated = true;
+                blocks[x][y].updated = true;
                 lastUpdate = 0;
                 return true;
             }
@@ -91,18 +91,19 @@ struct Chunk {
                 blocks[x][y].type = 0;
                 toBeUpdated = true;
                 lastUpdate = 0;
-                updated[x][y] = true;
+                blocks[x][y].updated = true;
                 return true;
             }
             else if (bottomChunkDataCopy[x].type != 0 && bottomChunkDataCopy[x].type != 255 && 
-                    moveDown[x].type == 0 && moveByWeight && 
+                    moveDown[x].type == 0 && moveByWeight && !bottomChunkDataCopy[x].updated && 
                     tiles[bottomChunkDataCopy[x].type].weight < tiles[blocks[x][y].type].weight) {
                 Cell oldcell = bottomChunkDataCopy[x];
                 bottomChunkDataCopy[x] = blocks[x][y];
                 blocks[x][y] = oldcell;
                 toBeUpdated = true;
-                updated[x][y] = true;
+                blocks[x][y].updated = true;
                 lastUpdate = 0;
+                bottomChunkDataCopy[x].updated = true;
                 return true;
             }
         }
@@ -110,22 +111,22 @@ struct Chunk {
     }
     bool MoveUp(int x, int y, std::vector<Tile> &tiles, bool moveByWeight=false) {
         if (y - 1 >= 0) {
-            if (blocks[x][y - 1].type == 0 && !updated[x][y - 1]) {
+            if (blocks[x][y - 1].type == 0 && !blocks[x][y - 1].updated) {
                 blocks[x][y - 1] = blocks[x][y];
                 blocks[x][y].type = 0;
                 toBeUpdated = true;
-                updated[x][y - 1] = true;
-                updated[x][y] = true;
+                blocks[x][y - 1].updated = true;
+                blocks[x][y].updated = true;
                 lastUpdate = 0;
                 return true;
             }
-            else if (blocks[x][y-1].type!=0 && blocks[x][y-1].type!=255 && !updated[x][y-1] && moveByWeight && tiles[blocks[x][y-1].type].weight<tiles[blocks[x][y].type].weight) {
+            else if (blocks[x][y-1].type!=0 && blocks[x][y-1].type!=255 && !blocks[x][y-1].updated && moveByWeight && tiles[blocks[x][y-1].type].weight<tiles[blocks[x][y].type].weight) {
                 Cell oldcell = blocks[x][y-1];
                 blocks[x][y - 1] = blocks[x][y];
                 blocks[x][y] = oldcell;
                 toBeUpdated = true;
-                updated[x][y - 1] = true;
-                updated[x][y] = true;
+                blocks[x][y - 1].updated = true;
+                blocks[x][y].updated = true;
                 lastUpdate = 0;
                 return true;
             }
@@ -136,7 +137,8 @@ struct Chunk {
                 blocks[x][y].type = 0;
                 toBeUpdated = true;
                 lastUpdate = 0;
-                updated[x][y] = true;
+                blocks[x][y].updated = true;
+                topChunkDataCopy[x].updated = true;
                 return true;
             }
         }
@@ -145,33 +147,34 @@ struct Chunk {
 
     bool MoveLeft(int x, int y, std::vector<Tile> &tiles, bool moveByWeight=false) {
         if (x - 1 >= 0) {
-            if (blocks[x - 1][y].type == 0 && !updated[x - 1][y]) {
+            if (blocks[x - 1][y].type == 0 && !blocks[x - 1][y].updated) {
                 blocks[x - 1][y] = blocks[x][y];
                 blocks[x][y].type = 0;
                 toBeUpdated = true;
-                updated[x - 1][y] = true;
-                updated[x][y] = true;
+                blocks[x - 1][y].updated = true;
+                blocks[x][y].updated = true;
                 lastUpdate = 0;
                 return true;
             }
-            else if (blocks[x-1][y].type!=0 && blocks[x-1][y].type!=255 && !updated[x-1][y] && moveByWeight && tiles[blocks[x-1][y].type].weight<tiles[blocks[x][y].type].weight) {
+            else if (blocks[x-1][y].type!=0 && blocks[x-1][y].type!=255 && !blocks[x-1][y].updated && moveByWeight && tiles[blocks[x-1][y].type].weight<tiles[blocks[x][y].type].weight) {
                 Cell oldcell = blocks[x-1][y];
                 blocks[x - 1][y] = blocks[x][y];
                 blocks[x][y] = oldcell;
                 toBeUpdated = true;
-                updated[x - 1][y] = true;
-                updated[x][y] = true;
+                blocks[x - 1][y].updated = true;
+                blocks[x][y].updated = true;
                 lastUpdate = 0;
                 return true;
             }
         }
         else {
-            if (leftChunkDataCopy[y].type == 0 && moveLeft[y].type == 0) {
+            if (leftChunkDataCopy[y].type == 0 && moveLeft[y].type == 0 && !leftChunkDataCopy[y].updated) {
                 moveLeft[y] = blocks[x][y];
                 blocks[x][y].type = 0;
-                updated[x][y] = true;
+                blocks[x][y].updated = true;
                 toBeUpdated = true;
                 lastUpdate = 0;
+                leftChunkDataCopy[y].updated = true;
                 return true;
             }
         }
@@ -180,33 +183,34 @@ struct Chunk {
 
     bool MoveRight(int x, int y,  std::vector<Tile> &tiles,bool moveByWeight=false) {
         if (x + 1 < c_chunkSize) {
-            if (blocks[x + 1][y].type == 0 && !updated[x + 1][y]) {
+            if (blocks[x + 1][y].type == 0 && !blocks[x + 1][y].updated) {
                 blocks[x + 1][y] = blocks[x][y];
                 blocks[x][y].type = 0;
                 toBeUpdated = true;
-                updated[x + 1][y] = true;
-                updated[x][y] = true;
+                blocks[x + 1][y].updated = true;
+                blocks[x][y].updated = true;
                 lastUpdate = 0;
                 return true;
             }
-            else if (blocks[x+1][y].type!=0 && blocks[x+1][y].type!=255 && !updated[x+1][y] && moveByWeight && tiles[blocks[x+1][y].type].weight<tiles[blocks[x][y].type].weight) {
+            else if (blocks[x+1][y].type!=0 && blocks[x+1][y].type!=255 && !blocks[x+1][y].updated && moveByWeight && tiles[blocks[x+1][y].type].weight<tiles[blocks[x][y].type].weight) {
                 Cell oldcell = blocks[x+1][y];
                 blocks[x + 1][y] = blocks[x][y];
                 blocks[x][y] = oldcell;
                 toBeUpdated = true;
-                updated[x + 1][y] = true;
-                updated[x][y] = true;
+                blocks[x + 1][y].updated = true;
+                blocks[x][y].updated = true;
                 lastUpdate = 0;
                 return true;
             }
         }
         else {
-            if (rightChunkDataCopy[y].type == 0 && moveRight[y].type == 0) {
+            if (rightChunkDataCopy[y].type == 0 && moveRight[y].type == 0 && !rightChunkDataCopy[y].updated) {
                 moveRight[y] = blocks[x][y];
                 blocks[x][y].type = 0;
                 toBeUpdated = true;
                 lastUpdate = 0;
-                updated[x][y] = true;
+                blocks[x][y].updated = true;
+                rightChunkDataCopy[y].updated = true;
                 return true;
             }
         }
@@ -215,14 +219,11 @@ struct Chunk {
     void UpdatePhysics(std::vector<Tile>&tiles) {
         lastUpdate++;
 
-        for (int x = 0; x < c_chunkSize; x++)
-            for (int y = 0; y < c_chunkSize; y++)
-                updated[x][y] = false;
 
         for (int y = c_chunkSize - 1; y >= 0; y--) {
             for (int x = 0; x < c_chunkSize; x++) {
 
-                if (updated[x][y] || blocks[x][y].type == 0)
+                if (blocks[x][y].updated || blocks[x][y].type == 0)
                     continue;
 
                 switch (blocks[x][y].type) {
@@ -241,30 +242,35 @@ struct Chunk {
 
                 case 3:
                 {
-                    if (!MoveDown(x, y,tiles,true)) {
+                    
+                    if (!MoveDown(x, y,tiles,false)) {
                         if (GetRandomValue(0,1)) {
-                            MoveLeft(x,y,tiles,true);
+                            MoveLeft(x,y,tiles,false);
                             break;
                         }
                         else {
-                            MoveRight(x,y,tiles,true);
+                            MoveRight(x,y,tiles,false);
                             break;
                         }
                     }
-                    if (blocks[x][y].direction==0)
-                    {
-                        if (!MoveLeft(x, y,tiles,false)) 
+                    for (int i = 0; i < 5; i++) {
+                        if (blocks[x][y].direction==0)
                         {
-                            blocks[x][y].direction = 1;
-                            break;
-                        }   
-                    }
-                    else
-                    {
-                        if (!MoveRight(x, y,tiles,false))
+                            if (!MoveLeft(x, y,tiles,false)) 
+                            {
+                                blocks[x][y].direction = 1;
+                                break;
+                                break;
+                            }   
+                        }
+                        else
                         {
-                            blocks[x][y].direction = 0;
-                            break;
+                            if (!MoveRight(x, y,tiles,false))
+                            {
+                                blocks[x][y].direction = 0;
+                                break;
+                                break;
+                            }
                         }
                     }
 
@@ -294,6 +300,7 @@ Chunk GenCleanChunk() {
         for (int y = 0; y < c_chunkSize; y++) {
             chunk.blocks[x][y].type = 0;
             chunk.blocks[x][y].direction = GetRandomValue(0,1);
+            chunk.blocks[x][y].updated = false;
         }
     }
 	chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
@@ -379,8 +386,17 @@ struct World {
         for (int x = 0; x < chunksX; x++) {
             for (int y = 0; y < chunksY; y++) {
                 if (chunkMap[{x,y}].containsData ) {
+                    
+                    for (int dx = 0; dx < c_chunkSize; dx++)
+                        for (int dy = 0; dy < c_chunkSize; dy++)
+                            chunkMap[{x,y}].blocks[dx][dy].updated = false;
+                    chunkMap[{x,y}].UpdatePhysics(tiles);
                     for (int cx = 0; cx < c_chunkSize; cx++) {
-
+                            
+                        chunkMap[{x,y}].bottomChunkDataCopy[cx].updated = false;
+                        chunkMap[{x,y}].topChunkDataCopy[cx].updated = false;
+                        chunkMap[{x,y}].leftChunkDataCopy[cx].updated = false;
+                        chunkMap[{x,y}].rightChunkDataCopy[cx].updated = false;
                         if (y+1<chunksY) chunkMap[{x,y}].bottomChunkDataCopy[cx] = chunkMap[{x,y+1}].blocks[cx][0];
                         else chunkMap[{x,y}].bottomChunkDataCopy[cx].type = 255;
                         if (y-1>=0) chunkMap[{x,y}].topChunkDataCopy[cx] = chunkMap[{x,y-1}].blocks[cx][c_chunkSize-1];
@@ -434,7 +450,6 @@ struct World {
                         }
                     }
 
-                    chunkMap[{x,y}].UpdatePhysics(tiles);
                 }
             }
         }
