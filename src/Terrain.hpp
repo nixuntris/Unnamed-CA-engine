@@ -127,8 +127,11 @@ Chunk GenCleanChunkTerrain(int cx, int cy) {
     chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
     chunk.texture = LoadTextureFromImage(chunk.image);
     
+    Image caveMap = GenImagePerlinNoise(c_chunkSize, c_chunkSize, 
+                                        cx, cy, 0.08f);
+    
     Image heightMap = GenImagePerlinNoise(c_chunkSize, 1, 
-                                          cx * c_chunkSize,0, 0.02f);
+                                          cx,0, 0.02f);
     for (int x = 0; x < c_chunkSize; x++) {
         int worldX = cx + x;
         float heightNoise = GetImageColor(heightMap, x, 0).r / 255.0f;
@@ -143,15 +146,18 @@ Chunk GenCleanChunkTerrain(int cx, int cy) {
 
         for (int y = 0; y < c_chunkSize; y++) {
             int worldY = cy + y;
-
+            float caveValue = (float)GetImageColor(caveMap, x, y).r / 255.0f;
+            bool isCave = caveValue > 0.35f ;
+               
             if (worldY > terrainHeight) {
-                chunk.blocks[x][y].type = 2; // Grass
+                 chunk.blocks[x][y].type = 2*isCave; // Stone
             }
             else if (worldY > terrainHeight - dirtDepth) {
-                chunk.blocks[x][y].type = 8; // Dirt
+                chunk.blocks[x][y].type = 8*isCave; // Grass
             }
             else if (worldY > terrainHeight - grassDepth - dirtDepth) {
-                chunk.blocks[x][y].type = 9; // Stone
+               
+                chunk.blocks[x][y].type = 9*isCave; // Dirt
             }
             else {
                 chunk.blocks[x][y].type = 0; // Air

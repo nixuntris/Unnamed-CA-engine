@@ -436,7 +436,7 @@ struct World {
         
         for (int x = 0; x < chunksX; x++) {
             for (int y = 0; y < chunksY; y++) {
-                if (chunkMap[{x,y}].containsData ) {
+                if (chunkMap[{x,y}].containsData && chunkMap[{x,y}].lastUpdate<c_sleepTime) {
                     
                     for (int dx = 0; dx < c_chunkSize; dx++)
                         for (int dy = 0; dy < c_chunkSize; dy++)
