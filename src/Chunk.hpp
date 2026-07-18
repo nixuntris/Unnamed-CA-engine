@@ -238,7 +238,6 @@ struct Chunk {
 
                 if (blocks[x][y].updated || blocks[x][y].type == 0)
                     continue;
-
                 switch (blocks[x][y].type) {
 
                 // Sand
