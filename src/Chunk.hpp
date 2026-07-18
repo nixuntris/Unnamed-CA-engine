@@ -47,9 +47,16 @@ struct Chunk {
 	bool containsData;
     int lastUpdate;
     int hash[c_chunkSize][c_chunkSize];
-    void Draw(int x, int y, Vector2 cameraPosition) {
-		DrawTexture(texture, x * c_chunkSize-cameraPosition.x, y * c_chunkSize-cameraPosition.y, WHITE);
-	}    
+    void Draw(int x, int y, Vector2 cameraPosition, float zoom) {
+        Rectangle sourceRect = {0, 0, texture.width, texture.height};
+        Rectangle destRect = {
+            (x * c_chunkSize - cameraPosition.x) * zoom,
+            (y * c_chunkSize - cameraPosition.y) * zoom,
+            texture.width * zoom,
+            texture.height * zoom
+        };
+        DrawTexturePro(texture, sourceRect, destRect, Vector2{0, 0}, 0.0f, WHITE);
+    }   
 	void UpdateDisplayBuffer(std::vector<Tile> &tiles) {
 		containsData = false;
         Color* pixels = (Color*)image.data;
@@ -442,14 +449,14 @@ struct World {
             }
         }
     }
-    void Draw(Vector2 cameraPosition) {
+    void Draw(Vector2 cameraPosition, float zoom) {
 		for (int x = 0; x < chunksX; x++) {
 			for (int y = 0; y < chunksY; y++) {
 				if (chunkMap[{x,y}].toBeUpdated) {
 					chunkMap[{x, y}].UpdateDisplayBuffer(materials);
 				}
 				if (chunkMap[{x, y}].containsData) {
-					chunkMap[{x, y}].Draw(x, y,cameraPosition);
+					chunkMap[{x, y}].Draw(x, y,cameraPosition,zoom);
                 }
 
 			}

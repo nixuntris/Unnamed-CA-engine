@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include "Gui.hpp"
 #include <map>
 #include <sstream>
 #include "Chunk.hpp"
@@ -17,33 +18,36 @@ struct Player {
     }
     void Control() {
         
+        float wheel = GetMouseWheelMove();
+        this->cameraZoom += wheel * 0.1f;
+            
+        if (wheel != 0) {
+            Vector2 mousePos = GetMousePosition();
+            Vector2 worldPos = {
+                (mousePos.x / this->cameraZoom) + this->cameraPosition.x,
+                (mousePos.y / this->cameraZoom) + this->cameraPosition.y
+            };
+            this->cameraZoom += wheel * 0.1f;
+            this->cameraZoom = Clamp(this->cameraZoom, 0.5f, 3.0f);
+            this->cameraPosition.x = worldPos.x - (mousePos.x / this->cameraZoom);
+            this->cameraPosition.y = worldPos.y - (mousePos.y / this->cameraZoom);
+        }
+        if (this->cameraZoom < 0.5f) this->cameraZoom = 0.5f;
+        if (this->cameraZoom > 30.0f) this->cameraZoom= 3.0f;
         if (IsKeyDown(KEY_A)) {
-            cameraPosition.x -= 2;
+            cameraPosition.x -= 2/this->cameraZoom;
         }
         if (IsKeyDown(KEY_D)) {
-            cameraPosition.x += 2;
+            cameraPosition.x += 2/this->cameraZoom;
         }
         if (IsKeyDown(KEY_W)) {
-            cameraPosition.y -= 2;
+            cameraPosition.y -= 2/this->cameraZoom;
         }
         if (IsKeyDown(KEY_S)) {
-            cameraPosition.y += 2;
+            cameraPosition.y += 2/this->cameraZoom;
         }
     }
 };
-
-namespace GUI {
-    bool Button(Vector2 position, Vector2 size, Color color, Color outline) {
-        DrawRectangle(position.x,position.y,size.x,size.y,color);
-        if (CheckCollisionRecs({position.x,position.y,size.x,size.y},{(float)GetMouseX(),(float)GetMouseY(),1,1})) {
-            DrawRectangle(position.x,position.y,size.x,size.y,{255,255,255,120});
-            DrawRectangleLines(position.x,position.y,size.x,size.y,outline);
-            return true;
-        }
-        DrawRectangleLines(position.x,position.y,size.x,size.y,outline);
-        return false;
-    }
-}
 
 class App {
 	int editSize = 15;
@@ -60,8 +64,15 @@ public:
 		while (!WindowShouldClose()) {
 			BeginDrawing();
 			ClearBackground(SKYBLUE);
-            DrawRectangleLines(0-player.cameraPosition.x,0-player.cameraPosition.y,1920,1080,WHITE);
-            world.Draw(player.cameraPosition);
+                        
+            DrawRectangleLines(
+                -player.cameraPosition.x * player.cameraZoom,
+                -player.cameraPosition.y *  player.cameraZoom,
+                1920 *  player.cameraZoom,
+                1080 *  player.cameraZoom,
+                WHITE
+            );
+            world.Draw(player.cameraPosition,player.cameraZoom);
             world.UpdatePhysics(world.materials);
 			player.Control();
             bool hover = false;
@@ -76,15 +87,25 @@ public:
                     hoveredOver = world.materials[i].name;
                 }
             }
+            
+            if (GUI::ButtonWithSlider({100, 100}, {200, 40}, GRAY, WHITE, &editSize, 0, 100)) {
+                hover = true;
+            }
             if (hoveredOver!="") {
                 DrawText(hoveredOver.c_str(),GetMouseX(),GetMouseY(),16,BLACK);
             }
-            
+                        
+            Vector2 mousePos = GetMousePosition();
+
+            Vector2 worldMousePos = {
+                (mousePos.x / player.cameraZoom) + player.cameraPosition.x,
+                (mousePos.y / player.cameraZoom) + player.cameraPosition.y
+            };
 			if (IsMouseButtonDown(0) && !hover) {
 				for (int x = 0; x < editSize; x++) {
 					for (int y = 0; y < editSize; y++) {
-						int updateX = x + GetMouseX()+player.cameraPosition.x;
-						int updateY = y + GetMouseY()+player.cameraPosition.y;
+						int updateX = x + worldMousePos.x;
+						int updateY = y + worldMousePos.y;
                         if (updateX>=0 && updateY>=0 && updateX<1920 && updateY<1080) {
                                 
                             if (updateX < 0 || updateY < 0) continue;
@@ -102,8 +123,8 @@ public:
             else if (IsMouseButtonDown(1) && !hover) {
 				for (int x = 0; x < editSize; x++) {
 					for (int y = 0; y < editSize; y++) {
-						int updateX = x + GetMouseX()+player.cameraPosition.x;
-						int updateY = y + GetMouseY()+player.cameraPosition.y;
+						int updateX = x + worldMousePos.x;
+						int updateY = y + worldMousePos.y;
                         if (updateX>=0 && updateY>=0 && updateX<1920 && updateY<1080) {
                                 
                             if (updateX < 0 || updateY < 0) continue;

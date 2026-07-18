@@ -7,6 +7,7 @@ gas = false
 dissolve = None
 leaveBehind = 0
 color = (1024,191,255,255)
+lifeTime = -1
 
 sand:
 weight = 3
@@ -18,6 +19,7 @@ dissolve = None
 fluid = false
 gas = false
 leaveBehind = 0
+lifeTime = -1
 
 stone:
 falls = false
@@ -29,6 +31,7 @@ gas = false
 color = (130,130,130,255)
 dissolve = None
 leaveBehind = 0
+lifeTime = -1
 
 water:
 falls = true
@@ -40,6 +43,7 @@ color = (0,121,241,255)
 dissolve = None
 gas = false
 leaveBehind = 0
+lifeTime = -1
 
 salt:
 falls = true
@@ -51,6 +55,7 @@ dissolve = 3
 fluid = false
 gas = false
 leaveBehind = 0
+lifeTime = -1
 
 wood:
 falls = false
@@ -62,6 +67,7 @@ color = (101,67,33,255)
 dissolve = None
 gas = false
 leaveBehind = 0
+lifeTime = -1
 
 fire:
 falls = true
@@ -71,9 +77,10 @@ name = fire
 fluid = false
 color = (255,140,0,255)
 dissolve = 3
-replace = wood
+replace = 5
 gas = false
 leaveBehind = 7
+lifeTime = 5
 
 smoke:
 weight = 0
@@ -85,3 +92,4 @@ dissolve = None
 fluid = false
 gas = true
 leaveBehind = 0
+lifeTime = -1
