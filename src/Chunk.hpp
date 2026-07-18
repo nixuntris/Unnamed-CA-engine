@@ -234,33 +234,23 @@ struct Chunk {
                     if (MoveDown(x, y))
                         break;
 
-                    if (GetRandomValue(0, 1))
+                    if (blocks[x][y].direction==0)
                     {
-                        if (MoveDownLeft(x, y))
+                        if (!MoveLeft(x, y)) 
+                        {
+                            blocks[x][y].direction = 1;
                             break;
-                        if (MoveDownRight(x, y))
-                            break;
+                        }   
                     }
                     else
                     {
-                        if (MoveDownRight(x, y))
+                        if (!MoveRight(x, y))
+                        {
+                            blocks[x][y].direction = 0;
                             break;
-                        if (MoveDownLeft(x, y))
-                            break;
+                        }
                     }
 
-                    if (GetRandomValue(0, 1))
-                    {
-                        if (MoveLeft(x, y))
-                            break;
-                        MoveRight(x, y);
-                    }
-                    else
-                    {
-                        if (MoveRight(x, y))
-                            break;
-                        MoveLeft(x, y);
-                    }
 
                     break;
                 }
@@ -284,7 +274,10 @@ Chunk GenCleanChunk() {
         chunk.leftChunkDataCopy[x].type = 0;
         chunk.rightChunkDataCopy[x].type = 0;
         chunk.topChunkDataCopy[x].type = 0;
-        for (int y = 0; y < c_chunkSize; y++) chunk.blocks[x][y].type = 0;
+        for (int y = 0; y < c_chunkSize; y++) {
+            chunk.blocks[x][y].type = 0;
+            chunk.blocks[x][y].direction = 0;
+        }
     }
 	chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
 	chunk.texture = LoadTextureFromImage(chunk.image);
