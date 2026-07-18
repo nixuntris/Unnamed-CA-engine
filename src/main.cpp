@@ -9,9 +9,12 @@
 #include <map>
 #include <sstream>
 #include "Chunk.hpp"
+#include "Terrain.hpp"
 struct Player {
     Vector2 cameraPosition;
     float cameraZoom;
+	int editSize = 15;
+    int choosen = 0;
     void Init() {
         cameraPosition = {0,0};
         cameraZoom = 0;
@@ -33,7 +36,7 @@ struct Player {
             this->cameraPosition.y = worldPos.y - (mousePos.y / this->cameraZoom);
         }
         if (this->cameraZoom < 0.5f) this->cameraZoom = 0.5f;
-        if (this->cameraZoom > 30.0f) this->cameraZoom= 3.0f;
+        if (this->cameraZoom > 3.0f) this->cameraZoom= 3.0f;
         if (IsKeyDown(KEY_A)) {
             cameraPosition.x -= 2/this->cameraZoom;
         }
@@ -47,44 +50,17 @@ struct Player {
             cameraPosition.y += 2/this->cameraZoom;
         }
     }
-};
-
-class App {
-	int editSize = 15;
-    World world;
-    Player player;
-public:
-    
-	App() {
-		InitWindow(c_screenWidth, c_screenHeight, "a");
-        world.Init();   
-    }
-	void Run() {
-        int choosen = 0;
-		while (!WindowShouldClose()) {
-			BeginDrawing();
-			ClearBackground(SKYBLUE);
-                        
-            DrawRectangleLines(
-                -player.cameraPosition.x * player.cameraZoom,
-                -player.cameraPosition.y *  player.cameraZoom,
-                1920 *  player.cameraZoom,
-                1080 *  player.cameraZoom,
-                WHITE
-            );
-            world.Draw(player.cameraPosition,player.cameraZoom);
-            world.UpdatePhysics(world.materials);
-			player.Control();
-            bool hover = false;
+    void Editor(World *world) {
+         bool hover = false;
             std::string hoveredOver = "";
-            for (int d = 0; d < world.materials.size()-1; d++) {
+            for (int d = 0; d < world->materials.size()-1; d++) {
                 int i = d+1; 
-                if (GUI::Button({(float)i*32+200,200}, {32,32}, world.materials[i].color,BLACK)) {
+                if (GUI::Button({(float)i*32+200,200}, {32,32}, world->materials[i].color,BLACK)) {
                     choosen = i;
                 }
                 if (CheckCollisionRecs({(float)i*32+200,200,32,32},{float(GetMouseX()),float(GetMouseY()),1,1})) {
                     hover = true;
-                    hoveredOver = world.materials[i].name;
+                    hoveredOver = world->materials[i].name;
                 }
             }
             
@@ -98,8 +74,8 @@ public:
             Vector2 mousePos = GetMousePosition();
 
             Vector2 worldMousePos = {
-                (mousePos.x / player.cameraZoom) + player.cameraPosition.x,
-                (mousePos.y / player.cameraZoom) + player.cameraPosition.y
+                (mousePos.x / cameraZoom) + cameraPosition.x,
+                (mousePos.y / cameraZoom) + cameraPosition.y
             };
 			if (IsMouseButtonDown(0) && !hover) {
 				for (int x = 0; x < editSize; x++) {
@@ -111,11 +87,11 @@ public:
                             if (updateX < 0 || updateY < 0) continue;
                             int chunkX = updateX / c_chunkSize;
                             int chunkY = updateY / c_chunkSize;
-                            if (chunkX < 0 || chunkX >= world.chunksX || chunkY < 0 || chunkY >= world.chunksY) continue;
-                            world.chunkMap[{chunkX, chunkY}].blocks[updateX % c_chunkSize][updateY % c_chunkSize].lifeTime = world.materials[choosen].lifeTime;
-                            world.chunkMap[{chunkX, chunkY}].blocks[updateX % c_chunkSize][updateY % c_chunkSize].type = choosen;
-                            world.chunkMap[{chunkX, chunkY}].toBeUpdated = true;
-                            world.chunkMap[{chunkX, chunkY}].lastUpdate = 0;
+                            if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
+                            world->chunkMap[{chunkX, chunkY}].blocks[updateX % c_chunkSize][updateY % c_chunkSize].lifeTime = world->materials[choosen].lifeTime;
+                            world->chunkMap[{chunkX, chunkY}].blocks[updateX % c_chunkSize][updateY % c_chunkSize].type = choosen;
+                            world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
+                            world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
                         }
 					}
 				}
@@ -130,15 +106,53 @@ public:
                             if (updateX < 0 || updateY < 0) continue;
                             int chunkX = updateX / c_chunkSize;
                             int chunkY = updateY / c_chunkSize;
-                            if (chunkX < 0 || chunkX >= world.chunksX || chunkY < 0 || chunkY >= world.chunksY) continue;
+                            if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
 
-                            world.chunkMap[{chunkX, chunkY}].blocks[updateX % c_chunkSize][updateY % c_chunkSize].type = 0;
-                            world.chunkMap[{chunkX, chunkY}].toBeUpdated = true;
-                            world.chunkMap[{chunkX, chunkY}].lastUpdate = 0;
+                            world->chunkMap[{chunkX, chunkY}].blocks[updateX % c_chunkSize][updateY % c_chunkSize].type = 0;
+                            world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
+                            world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
                         }
 					}
 				}
 			}
+    }
+};
+
+class App {
+    World world;
+    Player player;
+public:
+    
+    void Init() {
+        
+		for (int x = 0; x < world.chunksX; x++) {
+			for (int y = 0; y < world.chunksY; y++) {
+				 world.chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunkTerrain(x*c_chunkSize,y*c_chunkSize);
+			}
+		}
+        world.loadMaterials("data/tile_set.txt");
+    }
+	App() {
+		InitWindow(c_screenWidth, c_screenHeight, "a");
+        Init();   
+        SetTargetFPS(60);
+    }
+	void Run() {
+		while (!WindowShouldClose()) {
+			BeginDrawing();
+			ClearBackground(SKYBLUE);
+                        
+            DrawRectangleLines(
+                -player.cameraPosition.x * player.cameraZoom,
+                -player.cameraPosition.y *  player.cameraZoom,
+                1920 *  player.cameraZoom,
+                1080 *  player.cameraZoom,
+                WHITE
+            );
+            world.Draw(player.cameraPosition,player.cameraZoom);
+            world.UpdatePhysics(world.materials);
+			player.Control();
+            player.Editor(&world);
             DrawFPS(0, 0);
 			EndDrawing();
 		}

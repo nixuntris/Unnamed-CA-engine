@@ -259,6 +259,7 @@ struct Chunk {
             checkPosition(x - 1, y) || // LEFT
             checkPosition(x + 1, y);   // RIGHT
     }
+    
     inline void UpdatePhysics(std::vector<Tile>&tiles) {
         lastUpdate++;
 
@@ -338,68 +339,6 @@ unsigned int hash(unsigned int x, unsigned int y) {
     h = (h ^ (h >> 13)) * 1274126177u;
     return h ^ (h >> 16);
 }
-Chunk GenCleanChunk(int cx, int cy) {
-    Chunk chunk;
-    chunk.toBeUpdated = false;
-    chunk.containsData = false;
-    chunk.lastUpdate = 100;
-    for (int x = 0; x < c_chunkSize; x++) {
-        for (int y = 0; y < c_chunkSize; y++) {
-            chunk.blocks[x][y].type = 0;
-            chunk.blocks[x][y].direction = GetRandomValue(0, 1);
-            chunk.blocks[x][y].updated = false;
-            chunk.hash[x][y] = hash(x+cx*c_chunkSize,y+cy*c_chunkSize);
-        }
-    }
-    for (int i = 0; i < c_chunkSize; i++) {
-        chunk.moveDown[i].type = 0;
-        chunk.moveDown[i].direction = 0;
-        chunk.moveDown[i].updated = false;
-        
-        chunk.moveUp[i].type = 0;
-        chunk.moveUp[i].lifeTime = -1;
-        chunk.moveUp[i].direction = 0;
-        chunk.moveUp[i].updated = false;
-        
-        chunk.moveLeft[i].type = 0;
-        chunk.moveLeft[i].direction = 0;
-        chunk.moveLeft[i].lifeTime = -1;
-        chunk.moveLeft[i].updated = false;
-        
-        chunk.moveRight[i].type = 0;
-        chunk.moveRight[i].direction = 0;
-        chunk.moveRight[i].lifeTime = -1;
-        chunk.moveRight[i].updated = false;
-        
-        chunk.topChunkDataCopy[i].type = 0;
-        chunk.topChunkDataCopy[i].direction = 0;
-        chunk.topChunkDataCopy[i].updated = false;
-        
-        chunk.bottomChunkDataCopy[i].type = 0;
-        chunk.bottomChunkDataCopy[i].direction = 0;
-        chunk.bottomChunkDataCopy[i].updated = false;
-        
-        chunk.leftChunkDataCopy[i].type = 0;
-        chunk.leftChunkDataCopy[i].direction = 0;
-        chunk.leftChunkDataCopy[i].updated = false;
-        
-        chunk.rightChunkDataCopy[i].type = 0;
-        chunk.rightChunkDataCopy[i].direction = 0;
-        chunk.rightChunkDataCopy[i].updated = false;
-        
-        chunk.swapDown[i].type = 0;
-        chunk.swapDown[i].direction = 0;
-        chunk.swapDown[i].updated = false;
-        
-        chunk.swapUp[i].type = 0;
-        chunk.swapUp[i].direction = 0;
-        chunk.swapUp[i].updated = false;
-    }
-    chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
-    chunk.texture = LoadTextureFromImage(chunk.image);
-    
-    return chunk;
-}
 
 struct World {
     std::map<std::tuple<int, int>, Chunk> chunkMap;
@@ -420,15 +359,6 @@ struct World {
         std::vector<int> c;
         while (std::getline(ss, val, ',')) c.push_back(std::stoi(val));
         return {c[0], c[1], c[2], c[3]};
-    }
-    void Init() {
-        
-		for (int x = 0; x < chunksX; x++) {
-			for (int y = 0; y < chunksY; y++) {
-				 chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunk(x*c_chunkSize,y*c_chunkSize);
-			}
-		}
-        loadMaterials("data/tile_set.txt");
     }
     void loadMaterials(const std::string& filename) {
         std::ifstream file(filename);

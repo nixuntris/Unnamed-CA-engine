@@ -80,7 +80,7 @@ dissolve = 3
 replace = 5
 gas = false
 leaveBehind = 7
-lifeTime = 50
+lifeTime = 500
 
 smoke:
 weight = 0
@@ -91,5 +91,197 @@ color = (200,200,200,255)
 dissolve = None
 fluid = false
 gas = true
+leaveBehind = 0
+lifeTime = -1
+
+dirt:
+falls = false
+goes_to_sides = false
+weight = 95
+name = dirt
+fluid = false
+gas = false
+color = (120,72,32,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+grass:
+falls = false
+goes_to_sides = false
+weight = 95
+name = grass
+fluid = false
+gas = false
+color = (70,180,50,255)
+dissolve = None
+leaveBehind = 9
+lifeTime = -1
+
+mud:
+falls = false
+goes_to_sides = false
+weight = 94
+name = mud
+fluid = false
+gas = false
+color = (95,65,35,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+leaf:
+falls = false
+goes_to_sides = false
+weight = 15
+name = leaf
+fluid = false
+gas = false
+color = (45,150,45,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+log:
+falls = false
+goes_to_sides = false
+weight = 100
+name = log
+fluid = false
+gas = false
+color = (130,90,45,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+gravel:
+falls = true
+goes_to_sides = false
+weight = 3
+name = gravel
+fluid = false
+gas = false
+color = (110,110,110,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+clay:
+falls = false
+goes_to_sides = false
+weight = 96
+name = clay
+fluid = false
+gas = false
+color = (165,120,100,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+snow:
+falls = true
+goes_to_sides = false
+weight = 1
+name = snow
+fluid = false
+gas = false
+color = (245,245,250,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+ice:
+falls = false
+goes_to_sides = false
+weight = 97
+name = ice
+fluid = false
+gas = false
+color = (170,220,255,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+coal:
+falls = false
+goes_to_sides = false
+weight = 98
+name = coal
+fluid = false
+gas = false
+color = (35,35,35,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+iron_ore:
+falls = false
+goes_to_sides = false
+weight = 99
+name = iron ore
+fluid = false
+gas = false
+color = (160,120,90,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+gold_ore:
+falls = false
+goes_to_sides = false
+weight = 99
+name = gold ore
+fluid = false
+gas = false
+color = (230,190,40,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+lava:
+falls = true
+goes_to_sides = true
+weight = 4
+name = lava
+fluid = true
+gas = false
+color = (255,80,0,255)
+dissolve = 3
+leaveBehind = 7
+lifeTime = -1
+
+glass:
+falls = false
+goes_to_sides = false
+weight = 97
+name = glass
+fluid = false
+gas = false
+color = (180,230,255,160)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+brick:
+falls = false
+goes_to_sides = false
+weight = 100
+name = brick
+fluid = false
+gas = false
+color = (170,70,50,255)
+dissolve = None
+leaveBehind = 0
+lifeTime = -1
+
+bedrock:
+falls = false
+goes_to_sides = false
+weight = 1000
+name = bedrock
+fluid = false
+gas = false
+color = (50,50,50,255)
+dissolve = None
 leaveBehind = 0
 lifeTime = -1
