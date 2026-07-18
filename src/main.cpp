@@ -10,6 +10,7 @@
 #include <sstream>
 #include "Chunk.hpp"
 #include "Terrain.hpp"
+
 bool IsPositionSolid(World* world, float x, float y) {
     int tileX = (int)x;
     int tileY = (int)y;
@@ -137,159 +138,171 @@ struct Player {
 			}
     }
 };
+struct Ball {
+    Vector2 position;
+    Vector2 velocity;
+    float radius;
+    uint8_t type;
+    void Draw(Vector2 cameraPosition, float zoom) {
+        
+        float screenX = (position.x-cameraPosition.x)*zoom;
+        float screenY = (position.y-cameraPosition.y)*zoom;
+        
+        float screenRadius = radius*zoom;
+        DrawRectangle(screenX,screenY,screenRadius,screenRadius,RED);
+    }
+    void Update(World *world) {
+        velocity.y += 1;
+        if (velocity.y>10) velocity.y = 10;
+        position.x += velocity.x;
+        if (IsPositionSolid(world,position.x+1,position.y) || IsPositionSolid(world,position.x-1,position.y)) {
+            position.x -= velocity.x;
+            velocity.x *= -0.3f;
+            if (fabs(velocity.x) < 0.5f) velocity.x = 0;
+        }
+        position.y += velocity.y;
+        if (IsPositionSolid(world,position.x,position.y+1) || IsPositionSolid(world,position.x,position.y-1)) {
+            position.y -= velocity.y;
+            velocity.y *= -0.3f;
+            if (fabs(velocity.y)<1.0f) {
+                velocity.x *= 0.95f;
+            }
+        }
+    }   
+    
+    void ResolveCollisionWithBall(Ball& other) {
+        float dx = other.position.x - position.x;
+        float dy = other.position.y - position.y;
+        float distSq = dx * dx + dy * dy;
+        float minDist = radius + other.radius;
+        
+        if (distSq < minDist * minDist && distSq > 0.0001f) {
+            float dist = sqrtf(distSq);
+            float overlap = (minDist - dist) * 0.5f;
+            float nx = dx / dist;
+            float ny = dy / dist;
+            
+            position.x -= nx * overlap;
+            position.y -= ny * overlap;
+            other.position.x += nx * overlap;
+            other.position.y += ny * overlap;
+            
+            float dvx = velocity.x - other.velocity.x;
+            float dvy = velocity.y - other.velocity.y;
+            float impact = dvx * nx + dvy * ny;
+            
+            if (impact < 0) {
+                float impulse = -(1.0f + 0.8) * impact / 2.0f;
+                velocity.x += impulse * nx;
+                velocity.y += impulse * ny;
+                other.velocity.x -= impulse * nx;
+                other.velocity.y -= impulse * ny;
+            }
+        }
+    }
+
+};
 class PhysicalObject {
     Image image;
     Texture texture;
     float rotation;
     Vector2 position;
     Vector2 velocity;
-    Vector2 size;
+    std::vector<Ball> balls;
     public:
         uint8_t grid[c_chunkSize][c_chunkSize];
+            
+        inline Vector2 LocalToWorld(Vector2 localPos) {
+            float cosA = cosf(rotation * DEG2RAD);
+            float sinA = sinf(rotation * DEG2RAD);
+            return {
+                position.x + localPos.x * cosA - localPos.y * sinA,
+                position.y + localPos.x * sinA + localPos.y * cosA
+            };
+        }
+        
         void Init(std::vector<Tile> &tiles, Vector2 position, float rotate) {
             image = GenImageColor(c_chunkSize,c_chunkSize,BLANK);
             for (int x = 0; x < c_chunkSize; x++) {
                 for (int y= 0; y < c_chunkSize; y++) {
+                    if (grid[x][y]!=0) {
+                        Ball ball;
+                        ball.position = LocalToWorld({
+                            (float)(x - c_chunkSize/2), 
+                            (float)(y - c_chunkSize/2)
+                        });
+                        ball.velocity = {0, 0};
+                        ball.radius = 0.4f;
+                        ball.type = grid[x][y];
+                        balls.push_back(ball);
+                    }
                     ImageDrawPixel(&image,x,y,tiles[grid[x][y]].color);
                 }
             }
-            this->size = {c_chunkSize, c_chunkSize};
             this->rotation = rotate;
             this->position = position;
             this->texture = LoadTextureFromImage(image);
             
         }
-        std::vector<Vector2> GetRotatedCorners() {
-            std::vector<Vector2> corners(4);
-            float halfWidth = size.x/2.0f;
-            float halfHeight = size.y/2.0f;
-            Vector2 localCorners[4] = {
-                {-halfWidth,-halfHeight},
-                {halfWidth,-halfHeight},
-                {halfWidth,halfHeight},
-                {-halfWidth,halfHeight}
-            };
-            float cosA = cosf(rotation*DEG2RAD);
-            float sinA = sinf(rotation*DEG2RAD);
-            for (int i = 0; i < 4; i++) {
-                float rotatedX = localCorners[i].x * cosA - localCorners[i].y*sinA;
-                float rotatedY = localCorners[i].x * sinA - localCorners[i].y*cosA;
-                corners[i] = {position.x+rotatedX,position.y+rotatedY};
+        void CalculateVelocityFromBalls() {
+            if (balls.empty()) {
+                velocity = {0,0};
+                return;
             }
-            return corners;
-        }
-        bool IsPointInRotateRect(Vector2 point) {
-            float dX = point.x - position.x;
-            float dY = point.y - position.y;
-            float cosA = cosf(-rotation*DEG2RAD);
-            float sinA = sinf(-rotation*DEG2RAD);
-            float localX = dX * cosA-dY*sinA;
-            float localY = dX*sinA+dY*cosA;
-            float halfWidth = size.x/2.0f;
-            float halfHeight = size.y/2.0f;
-            return (localX>= -halfWidth && localX<=halfWidth && localY >= -halfHeight && localY<=halfHeight);
-        }
-        Rectangle GetBoundingBox() {
-            auto corners = GetRotatedCorners();
-            float minX = corners[0].x, maxX = corners[0].x;
-            float minY = corners[0].y, maxY = corners[0].y;
-            
-            for (const auto& corner : corners) {
-                minX = std::min(minX, corner.x);
-                maxX = std::max(maxX, corner.x);
-                minY = std::min(minY, corner.y);
-                maxY = std::max(maxY, corner.y);
+            velocity = {0,0};
+            for (const auto& ball : balls) {
+                velocity.x += ball.velocity.x;
+                velocity.y += ball.velocity.y;
             }
-            
-            return {minX, minY, maxX - minX, maxY - minY};
+            velocity.x /= balls.size();
+            velocity.y /= balls.size();
         }
-        bool IsCollidingWithWorld(World* world, float newX, float newY, float newRotation) {
-            Vector2 oldPos = position;
-            float oldRot = rotation;
-            position = {newX, newY};
-            rotation = newRotation;
-            Rectangle bbox = GetBoundingBox();
-            bbox.x -= 1;
-            bbox.y -= 1;
-            bbox.width += 2;
-            bbox.height += 2;
-            int startX = std::max(0, (int)bbox.x);
-            int endX = std::min(1919, (int)(bbox.x + bbox.width));
-            int startY = std::max(0, (int)bbox.y);
-            int endY = std::min(1079, (int)(bbox.y + bbox.height));
-            
-            for (int x = startX; x <= endX; x++) {
-                for (int y = startY; y <= endY; y++) {
-                    int chunkX = x / c_chunkSize;
-                    int chunkY = y / c_chunkSize;
-                    
-                    if (chunkX < 0 || chunkX >= world->chunksX || 
-                        chunkY < 0 || chunkY >= world->chunksY) {
-                        continue;
+        void Update(World *world) {
+            position.y += velocity.y;
+            position.x += velocity.x;
+            for (auto &t : balls) {
+                t.Update(world);
+            }
+            CalculateVelocityFromBalls();
+            std::cout<<velocity.x<<" "<<velocity.y<<"\n";
+            int r = 0;
+            for (int x = 0; x < c_chunkSize; x++) {
+                for (int y= 0; y < c_chunkSize; y++) {
+                    if (grid[x][y]!=0) {
+                        balls[r].position = LocalToWorld({
+                            (float)(x - c_chunkSize/2), 
+                            (float)(y - c_chunkSize/2)
+                        });
                     }
-                    
-                    int localX = x % c_chunkSize;
-                    int localY = y % c_chunkSize;
-                    
-                    if (world->chunkMap[{chunkX, chunkY}].blocks[localX][localY].type != 0) {
-                        Vector2 tileCenter = {x + 0.5f, y + 0.5f};
-                        if (IsPointInRotateRect(tileCenter)) {
-                            position = oldPos;
-                            rotation = oldRot;
-                            return true;
-                        }
-                    }
-                }
-            }
-            
-            position = oldPos;
-            rotation = oldRot;
-            return false;
-        }
-        
-        
-        void Update(World* world) {
-            velocity.y += 0.5f;
-            Vector2 newPosition = position;
-            newPosition.x = position.x + velocity.x;
-            if (!IsCollidingWithWorld(world, newPosition.x, position.y, rotation)) {
-                position.x = newPosition.x;
-            } else {
-                velocity.x = 0;
-            }
-            newPosition.y = position.y + velocity.y;
-            if (!IsCollidingWithWorld(world, position.x, newPosition.y, rotation)) {
-                position.y = newPosition.y;
-            } else {
-                velocity.y = 0;
-            }
-            if (IsCollidingWithWorld(world, position.x, position.y, rotation)) {
-                position.y -= 1;
-                if (IsCollidingWithWorld(world, position.x, position.y, rotation)) {
-                    position.y += 1;
-                    position.x -= 1;
+                    r++;
                 }
             }
         }
-        
         void Draw(Vector2 cameraPosition, float zoom) {
-            float worldX = position.x - cameraPosition.x;
-            float worldY = position.y - cameraPosition.y;
+            float worldX = position.x-cameraPosition.x;
+            float worldY = position.y-cameraPosition.y;
             Rectangle dest = {
-                worldX * zoom,
-                worldY * zoom,
+                worldX*zoom,
+                worldY*zoom,
                 texture.width * zoom,
                 texture.height * zoom
             };
-            Rectangle source = {0, 0, texture.width, texture.height};
-            Vector2 origin = {texture.width * 0.5f, texture.height * 0.5f};
-            DrawTexturePro(texture, source, dest, origin, rotation, WHITE);
+            Rectangle source = {0,0, texture.width,texture.height};
+            Vector2 origin = {texture.width*0.5f,texture.height*0.5f};
+            DrawTexturePro(texture,source,dest,origin,rotation,WHITE);
+            for (const auto& ball : balls) {
+                float screenX = (ball.position.x-cameraPosition.x)*zoom;
+                float screenY = (ball.position.y-cameraPosition.y)*zoom;
+                float screenRadius = ball.radius*zoom;
+                DrawCircle(screenX,screenY,screenRadius,RED);
+            }
         }
 };
 class App {
     World world;
     Player player;
     std::vector<PhysicalObject> objects;
+    std::vector<Ball> balls;
 public:
     
     void Init() {
@@ -317,7 +330,7 @@ public:
                     (mousePos.x / player.cameraZoom) +  player.cameraPosition.x,
                     (mousePos.y /  player.cameraZoom) +  player.cameraPosition.y
                 };
-                PhysicalObject objectrs;
+           /*     PhysicalObject objectrs;
                 for (int x = 0; x < c_chunkSize; x++) {
                     for (int y = 0; y < c_chunkSize; y++) {
                         objectrs.grid[x][y] = 1;
@@ -325,7 +338,13 @@ public:
                     }   
                 }
                 objectrs.Init(world.materials,worldPos,0);
-                objects.push_back(objectrs);
+                objects.push_back(objectrs);*/
+                Ball ball;
+                ball.position = worldPos;
+                ball.radius = 2;
+                ball.type = 1;
+                ball.velocity = {0,0};
+                balls.push_back(ball);
                 frame = 0;
             }    
 
@@ -342,6 +361,18 @@ public:
 			world.DebugActivityDisplay(player.cameraPosition,player.cameraZoom);
             for (auto &t : objects) {
                 t.Update(&world);
+            }
+            int id = 0;
+            for (auto &t : balls) {
+                for (int r = 0; r < balls.size(); r++) {
+                    if (id!=r) t.ResolveCollisionWithBall(balls[r]);
+                }
+                t.Update(&world);
+                id++;
+            }
+            for (auto &t : balls) {
+                t.Draw(player.cameraPosition,player.cameraZoom);
+            
             }
             for (auto &t : objects) {
                 t.Draw(player.cameraPosition,player.cameraZoom);
