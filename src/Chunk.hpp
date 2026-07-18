@@ -3,6 +3,7 @@
 #include <cinttypes>
 #include "string"
 #include <vector>
+#include <tuple>
 const int c_chunkSize = 64;
 const int c_sleepTime = 30;
 const int c_screenWidth = 1920;
@@ -43,8 +44,8 @@ struct Chunk {
 	bool containsData;
     int lastUpdate;
 
-    void Draw(int x, int y) {
-		DrawTexture(texture, x * c_chunkSize, y * c_chunkSize, WHITE);
+    void Draw(int x, int y, Vector2 cameraPosition) {
+		DrawTexture(texture, x * c_chunkSize-cameraPosition.x, y * c_chunkSize-cameraPosition.y, WHITE);
 	}
 	void UpdateDisplayBuffer(std::vector<Tile> &tiles) {
 		containsData = false;
@@ -146,7 +147,6 @@ struct Chunk {
         }
         return false;
     }
-
     bool MoveLeft(int x, int y, std::vector<Tile> &tiles, bool moveByWeight=false) {
         if (x - 1 >= 0) {
             if (blocks[x - 1][y].type == 0 && !blocks[x - 1][y].updated) {
@@ -182,7 +182,6 @@ struct Chunk {
         }
         return false;
     }
-
     bool MoveRight(int x, int y,  std::vector<Tile> &tiles,bool moveByWeight=false) {
         if (x + 1 < c_chunkSize) {
             if (blocks[x + 1][y].type == 0 && !blocks[x + 1][y].updated) {
@@ -221,7 +220,6 @@ struct Chunk {
     void UpdatePhysics(std::vector<Tile>&tiles) {
         lastUpdate++;
 
-
         for (int y = c_chunkSize - 1; y >= 0; y--) {
             for (int x = 0; x < c_chunkSize; x++) {
 
@@ -253,6 +251,16 @@ struct Chunk {
                         else {
                             MoveRight(x,y,tiles,false);
                             break;
+                        }
+                    }
+                    if (blocks[x][y].direction==0) {
+                        if (!MoveRight(x,y,tiles,false)) {
+                            blocks[x][y].direction = 1;
+                        }
+                    }
+                    else {
+                        if (!MoveLeft(x,y,tiles,false)) {
+                            blocks[x][y].direction =01;
                         }
                     }
                     break;
@@ -308,6 +316,15 @@ struct World {
         while (std::getline(ss, val, ',')) c.push_back(std::stoi(val));
         return {c[0], c[1], c[2], c[3]};
     }
+    void Init() {
+        
+		for (int x = 0; x < chunksX; x++) {
+			for (int y = 0; y < chunksY; y++) {
+				 chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunk();
+			}
+		}
+        loadMaterials("data/tile_set.txt");
+    }
     void loadMaterials(const std::string& filename) {
         std::ifstream file(filename);
         if (!file.is_open()) return;
@@ -337,14 +354,14 @@ struct World {
             }
         }
     }
-    void Draw() {
+    void Draw(Vector2 cameraPosition) {
 		for (int x = 0; x < chunksX; x++) {
 			for (int y = 0; y < chunksY; y++) {
 				if (chunkMap[{x,y}].toBeUpdated) {
 					chunkMap[{x, y}].UpdateDisplayBuffer(materials);
 				}
 				if (chunkMap[{x, y}].containsData) {
-					chunkMap[{x, y}].Draw(x, y);
+					chunkMap[{x, y}].Draw(x, y,cameraPosition);
                 }
 
 			}
@@ -455,8 +472,8 @@ struct World {
                     chunkMap[{x,y}].moveUp[i].type = 0;
                     chunkMap[{x,y}].moveLeft[i].type = 0;
                     chunkMap[{x,y}].moveRight[i].type = 0;
-                    }
                 }
+            }
         }
     }
 };
