@@ -270,30 +270,63 @@ struct Chunk {
         }
     }
 };
-
 Chunk GenCleanChunk() {
-	Chunk chunk;
+    Chunk chunk;
     chunk.toBeUpdated = false;
     chunk.containsData = false;
     chunk.lastUpdate = 100;
-	for (int x = 0; x < c_chunkSize; x++) {
-        chunk.moveDown[x].type = 0;
-        chunk.moveUp[x].type = 0;
-        chunk.moveLeft[x].type = 0;
-        chunk.moveRight[x].type = 0;
-        chunk.bottomChunkDataCopy[x].type = 0;
-        chunk.leftChunkDataCopy[x].type = 0;
-        chunk.rightChunkDataCopy[x].type = 0;
-        chunk.topChunkDataCopy[x].type = 0;
+    for (int x = 0; x < c_chunkSize; x++) {
         for (int y = 0; y < c_chunkSize; y++) {
             chunk.blocks[x][y].type = 0;
-            chunk.blocks[x][y].direction = GetRandomValue(0,1);
+            chunk.blocks[x][y].direction = GetRandomValue(0, 1);
             chunk.blocks[x][y].updated = false;
         }
     }
-	chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
-	chunk.texture = LoadTextureFromImage(chunk.image);
-	return chunk;
+    for (int i = 0; i < c_chunkSize; i++) {
+        chunk.moveDown[i].type = 0;
+        chunk.moveDown[i].direction = 0;
+        chunk.moveDown[i].updated = false;
+        
+        chunk.moveUp[i].type = 0;
+        chunk.moveUp[i].direction = 0;
+        chunk.moveUp[i].updated = false;
+        
+        chunk.moveLeft[i].type = 0;
+        chunk.moveLeft[i].direction = 0;
+        chunk.moveLeft[i].updated = false;
+        
+        chunk.moveRight[i].type = 0;
+        chunk.moveRight[i].direction = 0;
+        chunk.moveRight[i].updated = false;
+        
+        chunk.topChunkDataCopy[i].type = 0;
+        chunk.topChunkDataCopy[i].direction = 0;
+        chunk.topChunkDataCopy[i].updated = false;
+        
+        chunk.bottomChunkDataCopy[i].type = 0;
+        chunk.bottomChunkDataCopy[i].direction = 0;
+        chunk.bottomChunkDataCopy[i].updated = false;
+        
+        chunk.leftChunkDataCopy[i].type = 0;
+        chunk.leftChunkDataCopy[i].direction = 0;
+        chunk.leftChunkDataCopy[i].updated = false;
+        
+        chunk.rightChunkDataCopy[i].type = 0;
+        chunk.rightChunkDataCopy[i].direction = 0;
+        chunk.rightChunkDataCopy[i].updated = false;
+        
+        chunk.swapDown[i].type = 0;
+        chunk.swapDown[i].direction = 0;
+        chunk.swapDown[i].updated = false;
+        
+        chunk.swapUp[i].type = 0;
+        chunk.swapUp[i].direction = 0;
+        chunk.swapUp[i].updated = false;
+    }
+    chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
+    chunk.texture = LoadTextureFromImage(chunk.image);
+    
+    return chunk;
 }
 
 struct World {

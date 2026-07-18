@@ -16,6 +16,7 @@ struct Player {
         cameraZoom = 0;
     }
     void Control() {
+        
         if (IsKeyDown(KEY_A)) {
             cameraPosition.x -= 2;
         }
@@ -45,7 +46,7 @@ public:
 		while (!WindowShouldClose()) {
 			BeginDrawing();
 			ClearBackground(SKYBLUE);
-
+            DrawRectangleLines(0-player.cameraPosition.x,0-player.cameraPosition.y,1920,1080,WHITE);
 			if (IsMouseButtonDown(0)) {
 				for (int x = 0; x < editSize; x++) {
 					for (int y = 0; y < editSize; y++) {
@@ -76,7 +77,8 @@ public:
             }
             world.Draw(player.cameraPosition);
             world.UpdatePhysics(world.materials);
-			DrawFPS(0, 0);
+			player.Control();
+            DrawFPS(0, 0);
 			EndDrawing();
 		}
 	}
