@@ -230,7 +230,24 @@ struct Chunk {
         }
         return false;
     }
-    void UpdatePhysics(std::vector<Tile>&tiles) {
+    bool SurroundedByDissolvingTiles(int x, int y, int dissolvingTile) {
+    auto checkPosition = [&](int checkX, int checkY) -> bool {
+        if (checkX >= 0 && checkX < c_chunkSize && checkY >= 0 && checkY < c_chunkSize) {
+            return blocks[checkX][checkY].type == dissolvingTile;
+        }
+        if (checkY < 0) return topChunkDataCopy[checkX].type == dissolvingTile;
+        if (checkY >= c_chunkSize) return bottomChunkDataCopy[checkX].type == dissolvingTile;
+        if (checkX < 0) return leftChunkDataCopy[checkY].type == dissolvingTile;
+        if (checkX >= c_chunkSize) return rightChunkDataCopy[checkY].type == dissolvingTile;
+        
+        return false;
+    };
+    return checkPosition(x, y - 1) && // UP
+           checkPosition(x, y + 1) && // DOWN
+           checkPosition(x - 1, y) && // LEFT
+           checkPosition(x + 1, y);   // RIGHT
+}
+    inline void UpdatePhysics(std::vector<Tile>&tiles) {
         lastUpdate++;
 
         for (int y = c_chunkSize - 1; y >= 0; y--) {
@@ -238,7 +255,13 @@ struct Chunk {
                 uint8_t type = blocks[x][y].type;
                 if (blocks[x][y].updated || type == 0)
                     continue;
-                if (tiles[type].fluid) { 
+                if (tiles[type].dissolves!=-1 && SurroundedByDissolvingTiles(x,y,tiles[type].dissolves)) {
+                    
+                    blocks[x][y].type = 0;
+                    blocks[x][y].updated = true;
+                    
+                }
+                else if (tiles[type].fluid) { 
                     if (!MoveDown(x, y,tiles,false)) {
                         if (GetRandomValue(0,1)) {
                             MoveLeft(x,y,tiles,false);
@@ -392,7 +415,6 @@ struct World {
                 size_t sep = line.find('=');
                 std::string k = trim(line.substr(0, sep));
                 std::string v = trim(line.substr(sep + 1));
-
                 if (k == "weight") current->weight = std::stoi(v);
                 else if (k == "falls") current->falls = (v == "true");
                 else if (k == "goes_to_sides") current->goesBothWays = (v == "true");
