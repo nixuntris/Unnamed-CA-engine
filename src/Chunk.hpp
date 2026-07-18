@@ -79,7 +79,7 @@ struct Chunk {
 		UpdateTexture(texture, image.data);
 		toBeUpdated = false;
 	}
-    bool MoveDown(int x, int y, std::vector<Tile> &tiles, bool moveByWeight=false) {
+    inline bool MoveDown(int x, int y, std::vector<Tile> &tiles, bool moveByWeight=false) {
         if (y + 1 < c_chunkSize) {
             if (blocks[x][y + 1].type == 0 && !blocks[x][y + 1].updated) {
                 blocks[x][y + 1] = blocks[x][y];
@@ -125,7 +125,7 @@ struct Chunk {
         }
         return false;
     }
-    bool MoveUp(int x, int y, std::vector<Tile> &tiles, bool moveByWeight=false) {
+    inline bool MoveUp(int x, int y, std::vector<Tile> &tiles, bool moveByWeight=false) {
         if (y - 1 >= 0) {
             if (blocks[x][y - 1].type == 0 && !blocks[x][y - 1].updated) {
                 blocks[x][y - 1] = blocks[x][y];
@@ -160,7 +160,7 @@ struct Chunk {
         }
         return false;
     }
-    bool MoveLeft(int x, int y, std::vector<Tile> &tiles, bool moveByWeight=false) {
+    inline bool MoveLeft(int x, int y, std::vector<Tile> &tiles, bool moveByWeight=false) {
         if (x - 1 >= 0) {
             if (blocks[x - 1][y].type == 0 && !blocks[x - 1][y].updated) {
                 blocks[x - 1][y] = blocks[x][y];
@@ -195,7 +195,7 @@ struct Chunk {
         }
         return false;
     }
-    bool MoveRight(int x, int y,  std::vector<Tile> &tiles,bool moveByWeight=false) {
+    inline bool MoveRight(int x, int y,  std::vector<Tile> &tiles,bool moveByWeight=false) {
         if (x + 1 < c_chunkSize) {
             if (blocks[x + 1][y].type == 0 && !blocks[x + 1][y].updated) {
                 blocks[x + 1][y] = blocks[x][y];
@@ -235,49 +235,45 @@ struct Chunk {
 
         for (int y = c_chunkSize - 1; y >= 0; y--) {
             for (int x = 0; x < c_chunkSize; x++) {
-
-                if (blocks[x][y].updated || blocks[x][y].type == 0)
+                uint8_t type = blocks[x][y].type;
+                if (blocks[x][y].updated || type == 0)
                     continue;
-                switch (blocks[x][y].type) {
+                if (tiles[type].fluid) { 
+                    if (!MoveDown(x, y,tiles,false)) {
+                        if (GetRandomValue(0,1)) {
+                            MoveLeft(x,y,tiles,false);
+                            continue;
+                        }
+                        else {
+                            MoveRight(x,y,tiles,false);
+                            continue;
+                        }
+                    }
+                    if (blocks[x][y].direction==0) {
+                        if (!MoveRight(x,y,tiles,false)) {
+                            blocks[x][y].direction = 1;
+                            continue;
+                        }
+                    }
+                    else {
+                        if (!MoveLeft(x,y,tiles,false)) {
+                            blocks[x][y].direction = 0;
+                            continue;
+                        }
+                    
+                    }
+                }
+                else if (tiles[type].falls) {
 
-                // Sand
-                case 1:
-                {
                     if (!MoveDown(x, y,tiles,true)) {
                         if (GetRandomValue(0,1))
                             MoveLeft(x,y,tiles,true);
                         else
                             MoveRight(x,y,tiles,true);
                     }
-                    break;
+                    continue;
                 }
-
-                case 3:
-                {
-                    
-                    if (!MoveDown(x, y,tiles,false)) {
-                        if (GetRandomValue(0,1)) {
-                            MoveLeft(x,y,tiles,false);
-                            break;
-                        }
-                        else {
-                            MoveRight(x,y,tiles,false);
-                            break;
-                        }
-                    }
-                    if (blocks[x][y].direction==0) {
-                        if (!MoveRight(x,y,tiles,false)) {
-                            blocks[x][y].direction = 1;
-                        }
-                    }
-                    else {
-                        if (!MoveLeft(x,y,tiles,false)) {
-                            blocks[x][y].direction =01;
-                        }
-                    }
-                    break;
-                }
-                }
+                
             }
         }
     }
