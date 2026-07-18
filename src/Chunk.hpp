@@ -259,7 +259,6 @@ struct Chunk {
             checkPosition(x - 1, y) || // LEFT
             checkPosition(x + 1, y);   // RIGHT
     }
-    
     inline void UpdatePhysics(std::vector<Tile>&tiles) {
         lastUpdate++;
 
