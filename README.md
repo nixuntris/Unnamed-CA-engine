@@ -2,7 +2,26 @@
 A physics engine that implements celullar automata for per pixel simulation inspired by Falling Everything engine developed by Nolla Games and a sound simulation engine that changes depending on the material.
 
 ## Features
-It utilizes a little descriptor system that has an example stored in tile_set.txt to define how each cell behaves. You can combine characteristics to make new particles.
+It utilizes a little descriptor system that has an demo stored in tile_set.txt to define how each cell behaves. You can combine characteristics to make new particles.
+# Example usage:
+sand:
+weight = 3
+name = sand
+falls = true
+goes_to_sides = false
+color = (194,178,128,255)
+dissolve = None
+fluid = false
+stone:
+falls = false
+goes_to_sides = false
+weight = 100
+name = stone
+fluid = false
+color = (130,130,130,255)
+dissolve = None
+
+It's case sensitive and space sensitive
 
 For more accurate fluid simulations I have also implemented a pressure system. 
 
@@ -21,9 +40,14 @@ I am currently working on it solo and I want to keep working solo on the core ph
 In the releases tab on github there is a pre-made demo to play around with it. 
 
 ## Compiling From Source
-The project has raylib linked to where it's installed by the raylib installer, if you have it installed 
-somewhere else you need to change the COMPILER_PATH variable in the Makefile to where it's saved.
-
+The project uses the base setup example of raylib. Linked to where it's installed by the raylib installer.
+It's only targeted to windows. If you don't have it downloaded, here's a link:
+https://raysan5.itch.io/raylib
+Using Visual Studio Code:
+Open it in the editor
+Install the C/C++ extension if not already installed
+Press F5 to build and run
+Select C++ (GDB/LLDB) when prompted
 ## Dependencies 
 Raylib 5.5
 GCC C++14
