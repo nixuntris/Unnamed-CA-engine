@@ -23,10 +23,6 @@ It utilizes a little descriptor system that has an demo stored in tile_set.txt t
 
 It's case sensitive and space sensitive
 
-For more accurate fluid simulations I have also implemented a pressure system. 
-
-It also contains a rigid body simulation.
-
 ## Giving Feedback
 If you want to report a bug, think a feature would be neat and want to see it implemented make an issue on github.
 

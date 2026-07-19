@@ -166,9 +166,11 @@ public:
         }
     }
 	App() {
-		InitWindow(c_screenWidth, c_screenHeight, "a");
+        SetTraceLogLevel(LOG_NONE); 
+		InitWindow(1920, 1080, "a");
         Init();   
         //SetTargetFPS(60);
+
     }
     
 	void Run() {
