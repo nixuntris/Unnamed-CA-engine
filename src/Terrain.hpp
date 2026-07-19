@@ -2,7 +2,7 @@
 #include "Chunk.hpp"
 #include "raylib.h"
 
-Chunk GenCleanChunk(int cx, int cy) {
+Chunk GenCleanChunk(int cx, int cy, bool genCleanImage=false) {
     Chunk chunk;
     chunk.toBeUpdated = false;
     chunk.containsData = false;
@@ -59,15 +59,18 @@ Chunk GenCleanChunk(int cx, int cy) {
         chunk.swapUp[i].direction = 0;
         chunk.swapUp[i].updated = false;
     }
-    chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
-    chunk.texture = LoadTextureFromImage(chunk.image);
+    if (genCleanImage) {
+        chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
+        chunk.texture = LoadTextureFromImage(chunk.image);
+            
+    }
     
     return chunk;
 }
 
 
 
-Chunk GenCleanChunkTerrain(int cx, int cy) {
+Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
     Chunk chunk;
     chunk.toBeUpdated = true;
     chunk.containsData = true;
@@ -124,8 +127,11 @@ Chunk GenCleanChunkTerrain(int cx, int cy) {
         chunk.swapUp[i].direction = 0;
         chunk.swapUp[i].updated = false;
     }
-    chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
-    chunk.texture = LoadTextureFromImage(chunk.image);
+    if (genCleaImage) {
+        chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
+        chunk.texture = LoadTextureFromImage(chunk.image);
+    
+    }
     
     Image caveMap = GenImagePerlinNoise(c_chunkSize, c_chunkSize, 
                                         cx, cy, 0.08f);

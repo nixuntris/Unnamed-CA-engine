@@ -11,6 +11,7 @@
 #include "Chunk.hpp"
 #include "Terrain.hpp"
 #include "Physics.hpp"
+
 struct Player {
     Vector2 cameraPosition;
     float cameraZoom;
@@ -78,11 +79,18 @@ struct Player {
                 (mousePos.x / cameraZoom) + cameraPosition.x,
                 (mousePos.y / cameraZoom) + cameraPosition.y
             };
+            int endX = 0;
+            int startX = 1920;
 			if (IsMouseButtonDown(0) && !hover) {
 				for (int x = 0; x < editSize; x++) {
 					for (int y = 0; y < editSize; y++) {
-						int updateX = x + worldMousePos.x;
+						
+                        int updateX = x + worldMousePos.x;
 						int updateY = y + worldMousePos.y;
+                        
+                        if (updateX<startX) startX = updateX;
+                        if (updateX>endX) endX = updateX;
+
                         if (updateX>=0 && updateY>=0 && updateX<1920 && updateY<1080) {
                                 
                             if (updateX < 0 || updateY < 0) continue;
@@ -102,6 +110,8 @@ struct Player {
 					for (int y = 0; y < editSize; y++) {
 						int updateX = x + worldMousePos.x;
 						int updateY = y + worldMousePos.y;
+                        if (updateX<startX) startX = updateX;
+                        if (updateX>endX) endX = updateX;
                         if (updateX>=0 && updateY>=0 && updateX<1920 && updateY<1080) {
                                 
                             if (updateX < 0 || updateY < 0) continue;
@@ -116,16 +126,20 @@ struct Player {
 					}
 				}
 			}
+            if (startX!=1920 && endX!=0) {
+                for (int x = startX; x < endX; x++) {
+                    world->toBeUpdatedLine[x] = true;
+                }
+            }
     }
 };
-struct PhysicsChunk {
-    std::vector<Ball> staticBalls;
-};
+
+
 class App {
     World world;
     Player player;
-    std::vector<Ball> balls;
-    std::map<std::tuple<int, int>, PhysicsChunk> staticBalls;
+    
+
 public:
     
     void Init() {
@@ -133,28 +147,23 @@ public:
 		for (int x = 0; x < world.chunksX; x++) {
 			for (int y = 0; y < world.chunksY; y++) {
 				world.chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunkTerrain(x*c_chunkSize,y*c_chunkSize);
-                staticBalls[std::tuple<int,int>{x,y}].staticBalls.reserve(c_chunkSize*c_chunkSize);
-                for (int cx = 0; cx < c_chunkSize; cx++) {
-                    for (int cy = 0; cy < c_chunkSize; cy++) {
-                        if (world.chunkMap[std::tuple<int,int>{x,y}].blocks[cx][cy].type!=0) {
-                            Ball ball;
-                            ball.isStatic = true;
-                            ball.position = {(float)cx+x*c_chunkSize,(float)cy+y*c_chunkSize};
-                            ball.radius = 1;
-                            ball.velocity = {0,0};
-                            staticBalls[std::tuple<int,int>{x,y}].staticBalls.push_back(ball);
-                        }
-                    }   
-                }    
+                CAGI cagi;
+                cagi.Init();
+                world.lightMap[std::tuple<int, int>{x, y}] = cagi; 
+
             }
 		}
+        for (int x = 0; x < world.chunksX*c_chunkSize; x++) {
+            world.toBeUpdatedLine[x] = true;
+        }
         world.loadMaterials("data/tile_set.txt");
     }
 	App() {
 		InitWindow(c_screenWidth, c_screenHeight, "a");
         Init();   
-        SetTargetFPS(60);
+        //SetTargetFPS(60);
     }
+    
 	void Run() {
         int frame = 0;
 		while (!WindowShouldClose()) {
@@ -166,16 +175,14 @@ public:
                     (mousePos.x / player.cameraZoom) +  player.cameraPosition.x,
                     (mousePos.y /  player.cameraZoom) +  player.cameraPosition.y
                 };
-                Ball ball;
-                ball.position = worldPos;
-                ball.radius = 4;
-                ball.type = 1;
-                ball.velocity = {0,0};
-                balls.push_back(ball);
+                int cx = worldPos.x/c_chunkSize;
+                int cy = worldPos.y/c_chunkSize;
+                world.lightMap[{cx,cy}].emissiveR[(int)worldPos.x%c_chunkSize][(int)worldPos.y%c_chunkSize] = 255;
+                world.lightMap[{cx,cy}].emissiveG[(int)worldPos.x%c_chunkSize][(int)worldPos.y%c_chunkSize] = 255;
+                world.lightMap[{cx,cy}].emissiveB[(int)worldPos.x%c_chunkSize][(int)worldPos.y%c_chunkSize] = 255;
+                world.lightMap[{cx,cy}].updated = true;
                 frame = 0;
             }    
-
-            
             DrawRectangleLines(
                 -player.cameraPosition.x * player.cameraZoom,
                 -player.cameraPosition.y *  player.cameraZoom,
@@ -183,36 +190,28 @@ public:
                 1080 *  player.cameraZoom,
                 WHITE
             );
-            world.Draw(player.cameraPosition,player.cameraZoom);
+            //world.Draw(player.cameraPosition,player.cameraZoom);
             world.UpdatePhysics(world.materials);
-			//world.DebugActivityDisplay(player.cameraPosition,player.cameraZoom);
-            for (int i = 0; i < 8; i++) {
-
-                int id = 0;
-                
-                for (auto &t : balls) {
-                    int cx = t.position.x/c_chunkSize;
-                    int cy = t.position.y/c_chunkSize;
-                    for (int x = -1; x <= 1; x++) {
-                        for (int y = -1; y <= 1; y++) {
                         
-                            for (auto k : staticBalls[std::tuple<int,int>{cx+x,cy+y}].staticBalls) {
-                                t.ResolveCollisionWithBall(k);
-                            }
-                        }   
-                    }
-                    for (int r = id; r < balls.size(); r++) {
-                        if (id!=r) t.ResolveCollisionWithBall(balls[r]);
-                    }
-                    id++;
+            int beginX = (int)(player.cameraPosition.x / c_chunkSize);
+            int endX = (int)((player.cameraPosition.x + (GetScreenWidth() / player.cameraZoom)) / c_chunkSize) + 1;
+            int beginY = (int)(player.cameraPosition.y / c_chunkSize);
+            int endY = (int)((player.cameraPosition.y + (GetScreenHeight() / player.cameraZoom)) / c_chunkSize) + 1;
+
+            beginX = std::max(0, beginX);
+            endX = std::min(world.chunksX, endX);
+            beginY = std::max(0, beginY);
+            endY = std::min(world.chunksY, endY);
+            world.UpdateLighting();
+            for (int x = beginX; x < endX; x++) {
+                for (int y = beginY; y < endY; y++) {
+                    world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks,world.materials);
+                    
+                    
+                    world.lightMap[{x,y}].Draw(x,y,player.cameraPosition,player.cameraZoom);
+                    
+
                 }
-                for (auto &t : balls) {
-                    t.Update();
-                
-                }
-            }
-            for (auto &t : balls) {
-               t.Draw(player.cameraPosition,player.cameraZoom);
             }
             player.Control();
             

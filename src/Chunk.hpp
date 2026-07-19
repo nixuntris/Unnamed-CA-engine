@@ -4,6 +4,8 @@
 #include "string"
 #include <vector>
 #include <tuple>
+#include <cmath>
+#include <cstring>
 const int c_chunkSize = 64;
 const int c_sleepTime = 30;
 const int c_screenWidth = 1920;
@@ -339,18 +341,122 @@ unsigned int hash(unsigned int x, unsigned int y) {
     return h ^ (h >> 16);
 }
 
+struct CAGI {
+    float emissiveR[c_chunkSize][c_chunkSize];
+    float emissiveG[c_chunkSize][c_chunkSize];
+    float emissiveB[c_chunkSize][c_chunkSize];
+
+    float r[c_chunkSize][c_chunkSize];
+    float g[c_chunkSize][c_chunkSize];
+    float b[c_chunkSize][c_chunkSize];
+
+    float rNext[c_chunkSize][c_chunkSize];
+    float gNext[c_chunkSize][c_chunkSize];
+    float bNext[c_chunkSize][c_chunkSize];
+    Image image;
+    Texture texture;
+    bool updated;
+    void UpdateGI(float spreadSpeed, float decay, float boost, Cell cells[c_chunkSize][c_chunkSize], CAGI*leftChunk, CAGI*rightChunk, CAGI* upChunk, CAGI* downChunk) {
+        for (int x = 1; x < c_chunkSize-1; x++) {
+            for (int y = 1; y < c_chunkSize-1; y++) {
+                if (cells[x][y].type!=0) {
+                    rNext[x][y] = 0;
+                    gNext[x][y] = 0;
+                    bNext[x][y] = 0;
+                    continue;
+                }
+                float sumR=0, sumG=0, sumB=0;
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dy = -1; dy <= 1; dy++) {
+                        if (dx==0 && dy==0) continue;
+                        int nx = x+dx;
+                        int ny = y+dy;
+                        if (cells[nx][ny].type!=0) {
+                            sumR += r[x][y];
+                            sumG += g[x][y];
+                            sumB += b[x][y];
+                        }
+                        else {
+                            sumR += r[nx][ny];
+                            sumG += g[nx][ny];
+                            sumB += b[nx][ny];
+                        }
+                    }
+                }
+                float avgR = sumR * 0.125f;
+                float avgG = sumG * 0.125f;
+                float avgB = sumB * 0.125f;
+                rNext[x][y] = r[x][y]+(avgR-r[x][y])*spreadSpeed;
+                gNext[x][y] = g[x][y]+(avgR-g[x][y])*spreadSpeed;
+                bNext[x][y] = b[x][y]+(avgR-b[x][y])*spreadSpeed;
+                rNext[x][y] *= decay;
+                gNext[x][y] *= decay;
+                bNext[x][y] *= decay;
+                rNext[x][y] += emissiveR[x][y]*boost;
+                gNext[x][y] += emissiveG[x][y]*boost;
+                bNext[x][y] += emissiveB[x][y]*boost;
+                if (rNext[x][y]>50) rNext[x][y] = 50.0f;
+                if (gNext[x][y]>50) gNext[x][y] = 50.0f;
+                if (bNext[x][y]>50) bNext[x][y] = 50.0f;  
+            }
+        }
+        std::memcpy(r,rNext,sizeof(r));
+        std::memcpy(g,rNext,sizeof(g));
+        std::memcpy(b,rNext,sizeof(b));
+    }
+    void Draw(int x, int y, Vector2 cameraPosition, float zoom) {
+        Rectangle sourceRect = {0, 0, texture.width, texture.height};
+        Rectangle destRect = {
+            (x * c_chunkSize - cameraPosition.x) * zoom,
+            (y * c_chunkSize - cameraPosition.y) * zoom,
+            texture.width * zoom,
+            texture.height * zoom
+        };
+        DrawTexturePro(texture, sourceRect, destRect, Vector2{0, 0}, 0.0f, WHITE);
+    }   
+    void Update(Cell cells[c_chunkSize][c_chunkSize], std::vector<Tile> &tiles) {
+        for (int x = 0; x < c_chunkSize; x++) {
+            for (int y = 0; y < c_chunkSize; y++) {
+                Color tileColor = tiles[cells[x][y].type].color;
+                unsigned char finalR = (unsigned char)((tileColor.r / 255.0f) * r[x][y]);
+                unsigned char finalG = (unsigned char)((tileColor.g / 255.0f) * g[x][y]);
+                unsigned char finalB = (unsigned char)((tileColor.b / 255.0f) * b[x][y]);
+                ImageDrawPixel(&image,x,y,{finalR,finalG,finalB,255});
+            }
+        }
+        UpdateTexture(texture,image.data);
+        updated = false;
+    }
+    void Init() {
+        updated = false;
+        image = GenImageColor(c_chunkSize,c_chunkSize,BLACK);
+        texture = LoadTextureFromImage(image);
+        for (int x = 0; x < c_chunkSize; x++) {
+            for (int y = 0; y < c_chunkSize; y++) {
+                r[x][y] = 0;
+                g[x][y] = 0;
+                b[x][y] = 0;
+                rNext[x][y] = 0;
+                gNext[x][y] = 0;
+                bNext[x][y] = 0;
+            }
+        }
+    }
+};
+
 struct World {
     std::map<std::tuple<int, int>, Chunk> chunkMap;
+    std::map<std::tuple<int, int>, CAGI> lightMap;
 	
     int chunksX = (c_screenWidth + c_chunkSize - 1) / c_chunkSize;
     int chunksY = (c_screenHeight + c_chunkSize - 1) / c_chunkSize;
+    bool toBeUpdatedLine[c_screenWidth];
     std::vector<Tile> materials;
     std::string trim(const std::string& s) {
         size_t f = s.find_first_not_of(" \t");
         size_t l = s.find_last_not_of(" \t");
         return (f == std::string::npos) ? "" : s.substr(f, (l - f + 1));
     }
-
     Color parseColor(std::string s) {
         s = s.substr(1, s.size() - 2); // Remove parens
         std::stringstream ss(s);
@@ -526,6 +632,35 @@ struct World {
                     chunkMap[{x,y}].moveLeft[i].type = 0;
                     chunkMap[{x,y}].moveRight[i].type = 0;
                 }
+            }
+        }
+    }
+    inline void UpdateYLine(int x) {
+
+        for (int y = 0; y < chunksY*c_chunkSize; y++) {
+            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].r[x%c_chunkSize][y%c_chunkSize] = 0;
+            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].g[x%c_chunkSize][y%c_chunkSize] = 0;
+            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].b[x%c_chunkSize][y%c_chunkSize] = 0;
+        }
+        float lightStrength = 1;
+        for (int y = 0; y < chunksY*c_chunkSize; y++) {
+            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].r[x%c_chunkSize][y%c_chunkSize] = WHITE.r*lightStrength;
+            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].g[x%c_chunkSize][y%c_chunkSize] = WHITE.g*lightStrength;
+            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].b[x%c_chunkSize][y%c_chunkSize] = WHITE.b*lightStrength;
+
+            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].updated = true;
+                        
+            if (chunkMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].blocks[x%c_chunkSize][y%c_chunkSize].type!=0) {
+                lightStrength*=0.99;
+            }
+            if (lightStrength<0.1) break;
+        }
+    }
+    void UpdateLighting() {
+        for (int x = 0; x < c_screenWidth; x++) {
+            if (toBeUpdatedLine[x]) {
+                UpdateYLine(x);
+                toBeUpdatedLine[x]= false;
             }
         }
     }
