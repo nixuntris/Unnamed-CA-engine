@@ -8,8 +8,8 @@
 #include <cstring>
 const int c_chunkSize = 64;
 const int c_sleepTime = 30;
-const int c_screenWidth = 1280;
-const int c_screenHeight = 720;
+const int c_screenWidth = 1920;
+const int c_screenHeight = 1080;
 
 struct Tile {
     std::string name;
@@ -410,6 +410,7 @@ struct World {
 	
     int chunksX = (c_screenWidth + c_chunkSize - 1) / c_chunkSize;
     int chunksY = (c_screenHeight + c_chunkSize - 1) / c_chunkSize;
+    int lastUpdated[c_screenWidth];
     bool toBeUpdatedLine[c_screenWidth];
     std::vector<Tile> materials;
     std::string trim(const std::string& s) {
@@ -600,23 +601,28 @@ struct World {
     }
     inline void UpdateYLine(int x, std::vector<Tile> &tiles) {
 
-        for (int y = 0; y < chunksY*c_chunkSize; y++) {
-            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].r[x%c_chunkSize][y%c_chunkSize] = 30;
-            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].g[x%c_chunkSize][y%c_chunkSize] = 30;
-            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].b[x%c_chunkSize][y%c_chunkSize] = 30;
+        for (int y = 0; y < lastUpdated[x]; y++) {
+            auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
+
+            chunk.r[x%c_chunkSize][y%c_chunkSize] = 30;
+            chunk.g[x%c_chunkSize][y%c_chunkSize] = 30;
+            chunk.b[x%c_chunkSize][y%c_chunkSize] = 30;
         }
         float lightStrength = 1;
         for (int y = 0; y < chunksY*c_chunkSize; y++) {
+            auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
             if (!chunkMap[{x/c_chunkSize,y/c_chunkSize}].containsData) y+= c_chunkSize;
-            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].r[x%c_chunkSize][y%c_chunkSize] = WHITE.r*lightStrength;
-            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].g[x%c_chunkSize][y%c_chunkSize] = WHITE.g*lightStrength;
-            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].b[x%c_chunkSize][y%c_chunkSize] = WHITE.b*lightStrength;
+            
+            chunk.r[x%c_chunkSize][y%c_chunkSize] = WHITE.r*lightStrength;
+            chunk.g[x%c_chunkSize][y%c_chunkSize] = WHITE.g*lightStrength;
+            chunk.b[x%c_chunkSize][y%c_chunkSize] = WHITE.b*lightStrength;
 
-            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].updated = true;
+            chunk.updated = true;
                         
             if (chunkMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].blocks[x%c_chunkSize][y%c_chunkSize].type!=0) {
                 lightStrength*=(tiles[chunkMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].blocks[x%c_chunkSize][y%c_chunkSize].type].lightAbsorb);
             }
+            lastUpdated[x] = y;
             if (lightStrength<0.1) break;
         }
     }

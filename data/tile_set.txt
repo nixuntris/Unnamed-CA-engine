@@ -100,7 +100,7 @@ fluid = false
 gas = true
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 40
+lightAbsorb = 100
 
 dirt:
 falls = false

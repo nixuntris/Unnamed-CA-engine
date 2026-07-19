@@ -154,7 +154,7 @@ public:
 		}
         for (int x = 0; x < c_screenWidth; x++) {
             world.toBeUpdatedLine[x] = true;
-
+            world.lastUpdated[x] = 0;
         }
  
         world.UpdateLighting(world.materials);
@@ -176,14 +176,13 @@ public:
 		while (!WindowShouldClose()) {
 			BeginDrawing();
 			ClearBackground(SKYBLUE);
-            if (IsMouseButtonDown(2) && frame>GetFPS()/10) {
+            if (IsMouseButtonDown(2) && frame%10==0) {
                 Vector2 mousePos = GetMousePosition();
                 Vector2 worldPos = {
                     (mousePos.x / player.cameraZoom) +  player.cameraPosition.x,
                     (mousePos.y /  player.cameraZoom) +  player.cameraPosition.y
                 };
 
-                frame = 0;
             }    
             DrawRectangleLines(
                 -player.cameraPosition.x * player.cameraZoom,
@@ -205,21 +204,6 @@ public:
             beginY = std::max(0, beginY);
             endY = std::min(world.chunksY, endY);
             
-            for (int x = 0; x < world.chunksX; x++) {
-                for (int y = 0; y < world.chunksY; y++) {
-            
-                    bool update = false;
-                    for (int cx = 0; cx < c_chunkSize; cx++) {
-                        if (world.toBeUpdatedLine[cx+x*c_chunkSize]) {
-                            update=true;
-                            break;
-                        }
-                    }
-                    if (world.chunkMap[{x,y}].lastUpdate==0) update =true;
-                    if (update) world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks,world.materials);
-                    
-                }
-            }
             for (int x = beginX; x < endX; x++) {
                 for (int y = beginY; y < endY; y++) {
                     
@@ -228,7 +212,26 @@ public:
 
                 }
             }
-            world.UpdateLighting(world.materials);
+            if (frame%5==0) {
+                    
+                for (int x = 0; x < world.chunksX; x++) {
+                    for (int y = 0; y < world.chunksY; y++) {
+                
+                        bool update = false;
+                        for (int cx = 0; cx < c_chunkSize; cx++) {
+                            if (world.toBeUpdatedLine[cx+x*c_chunkSize]) {
+                                update=true;
+                                break;
+                            }
+                        }
+                        if (world.chunkMap[{x,y}].lastUpdate==0) update =true;
+                        if (update) world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks,world.materials);
+                        
+                    }
+                }
+                world.UpdateLighting(world.materials);
+            
+            }
             player.Control();
             
             player.Editor(&world);
