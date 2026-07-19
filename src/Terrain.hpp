@@ -12,7 +12,7 @@ Chunk GenCleanChunk(int cx, int cy, bool genCleanImage=false) {
             chunk.blocks[x][y].type = 0;
             chunk.blocks[x][y].direction = GetRandomValue(0, 1);
             chunk.blocks[x][y].updated = false;
-            chunk.hash[x][y] = hash(x+cx*c_chunkSize,y+cy*c_chunkSize);
+            
         }
     }
     for (int i = 0; i < c_chunkSize; i++) {
@@ -81,7 +81,6 @@ Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
             chunk.blocks[x][y].type = 0;
             chunk.blocks[x][y].direction = GetRandomValue(0, 1);
             chunk.blocks[x][y].updated = false;
-            chunk.hash[x][y] = hash(x+cx*c_chunkSize,y+cy*c_chunkSize);
         }
     }
     for (int i = 0; i < c_chunkSize; i++) {

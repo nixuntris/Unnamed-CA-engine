@@ -80,7 +80,7 @@ struct Player {
                 (mousePos.y / cameraZoom) + cameraPosition.y
             };
             int endX = 0;
-            int startX = 1920;
+            int startX = c_screenWidth;
 			if (IsMouseButtonDown(0) && !hover) {
 				for (int x = 0; x < editSize; x++) {
 					for (int y = 0; y < editSize; y++) {
@@ -91,7 +91,7 @@ struct Player {
                         if (updateX<startX) startX = updateX;
                         if (updateX>endX) endX = updateX;
 
-                        if (updateX>=0 && updateY>=0 && updateX<1920 && updateY<1080) {
+                        if (updateX>=0 && updateY>=0 && updateX<c_screenWidth && updateY<c_screenHeight) {
                                 
                             if (updateX < 0 || updateY < 0) continue;
                             int chunkX = updateX / c_chunkSize;
@@ -112,7 +112,7 @@ struct Player {
 						int updateY = y + worldMousePos.y;
                         if (updateX<startX) startX = updateX;
                         if (updateX>endX) endX = updateX;
-                        if (updateX>=0 && updateY>=0 && updateX<1920 && updateY<1080) {
+                        if (updateX>=0 && updateY>=0 && updateX<c_screenWidth && updateY<c_screenHeight) {
                                 
                             if (updateX < 0 || updateY < 0) continue;
                             int chunkX = updateX / c_chunkSize;
@@ -126,7 +126,7 @@ struct Player {
 					}
 				}
 			}
-            if (startX!=1920 && endX!=0) {
+            if (startX!=c_screenWidth && endX!=0) {
                 for (int x = startX; x < endX; x++) {
                     world->toBeUpdatedLine[x] = true;
                 }
@@ -138,8 +138,6 @@ struct Player {
 class App {
     World world;
     Player player;
-    
-
 public:
     
     void Init() {
@@ -149,17 +147,17 @@ public:
 			for (int y = 0; y < world.chunksY; y++) {
 				world.chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunkTerrain(x*c_chunkSize,y*c_chunkSize);
                 CAGI cagi;
-                cagi.Init();
+                cagi.Init(x,y);
                 world.lightMap[std::tuple<int, int>{x, y}] = cagi; 
 
             }
 		}
-        for (int x = 0; x < 1920; x++) {
+        for (int x = 0; x < c_screenWidth; x++) {
             world.toBeUpdatedLine[x] = true;
 
         }
  
-        world.UpdateLighting();
+        world.UpdateLighting(world.materials);
                
         for (int x = 0; x < world.chunksX; x++) {
             for (int y = 0; y < world.chunksY; y++) {
@@ -184,19 +182,14 @@ public:
                     (mousePos.x / player.cameraZoom) +  player.cameraPosition.x,
                     (mousePos.y /  player.cameraZoom) +  player.cameraPosition.y
                 };
-                int cx = worldPos.x/c_chunkSize;
-                int cy = worldPos.y/c_chunkSize;
-                world.lightMap[{cx,cy}].emissiveR[(int)worldPos.x%c_chunkSize][(int)worldPos.y%c_chunkSize] = 255;
-                world.lightMap[{cx,cy}].emissiveG[(int)worldPos.x%c_chunkSize][(int)worldPos.y%c_chunkSize] = 255;
-                world.lightMap[{cx,cy}].emissiveB[(int)worldPos.x%c_chunkSize][(int)worldPos.y%c_chunkSize] = 255;
-                world.lightMap[{cx,cy}].updated = true;
+
                 frame = 0;
             }    
             DrawRectangleLines(
                 -player.cameraPosition.x * player.cameraZoom,
                 -player.cameraPosition.y *  player.cameraZoom,
-                1920 *  player.cameraZoom,
-                1080 *  player.cameraZoom,
+                c_screenWidth *  player.cameraZoom,
+                c_screenHeight *  player.cameraZoom,
                 WHITE
             );
             //world.Draw(player.cameraPosition,player.cameraZoom);
@@ -235,7 +228,7 @@ public:
 
                 }
             }
-            world.UpdateLighting();
+            world.UpdateLighting(world.materials);
             player.Control();
             
             player.Editor(&world);

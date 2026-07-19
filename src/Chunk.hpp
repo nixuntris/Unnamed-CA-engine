@@ -8,8 +8,8 @@
 #include <cstring>
 const int c_chunkSize = 64;
 const int c_sleepTime = 30;
-const int c_screenWidth = 1920;
-const int c_screenHeight = 1080;
+const int c_screenWidth = 1280;
+const int c_screenHeight = 720;
 
 struct Tile {
     std::string name;
@@ -23,6 +23,7 @@ struct Tile {
     int replaces;
     int lifeTime;
     int leaveBehind;
+    float lightAbsorb;
 };
 struct Cell {
     uint8_t type;
@@ -50,7 +51,6 @@ struct Chunk {
 	bool toBeUpdated;
 	bool containsData;
     int lastUpdate;
-    int hash[c_chunkSize][c_chunkSize];
     bool updatedYLine[c_chunkSize];
     void Draw(int x, int y, Vector2 cameraPosition, float zoom) {
         Rectangle sourceRect = {0, 0, texture.width, texture.height};
@@ -76,16 +76,6 @@ struct Chunk {
                 else if (blocks[x][y].type<tiles.size()) {
                     
                     Color color = tiles[blocks[x][y].type].color;
-                    if (hash[x][y]&1) {
-                        color.r*=0.95;
-                        color.g*=0.95;
-                        color.b*=0.95;
-                    }
-                    else if (hash[x][y]%3==0) {
-                        color.r*=1.05;
-                        color.g*=1.05;
-                        color.b*=1.05;
-                    }
                     pixels[y * c_chunkSize + x] = color;
                     
                 }
@@ -356,70 +346,15 @@ unsigned int hash(unsigned int x, unsigned int y) {
 }
 
 struct CAGI {
-    float emissiveR[c_chunkSize][c_chunkSize];
-    float emissiveG[c_chunkSize][c_chunkSize];
-    float emissiveB[c_chunkSize][c_chunkSize];
-
     float r[c_chunkSize][c_chunkSize];
     float g[c_chunkSize][c_chunkSize];
     float b[c_chunkSize][c_chunkSize];
-
-    float rNext[c_chunkSize][c_chunkSize];
-    float gNext[c_chunkSize][c_chunkSize];
-    float bNext[c_chunkSize][c_chunkSize];
+    int hashValues[c_chunkSize][c_chunkSize];
     Image image;
     Texture texture;
     bool updated;
-    void UpdateGI(float spreadSpeed, float decay, float boost, Cell cells[c_chunkSize][c_chunkSize], CAGI*leftChunk, CAGI*rightChunk, CAGI* upChunk, CAGI* downChunk) {
-        for (int x = 1; x < c_chunkSize-1; x++) {
-            for (int y = 1; y < c_chunkSize-1; y++) {
-                if (cells[x][y].type!=0) {
-                    rNext[x][y] = 0;
-                    gNext[x][y] = 0;
-                    bNext[x][y] = 0;
-                    continue;
-                }
-                float sumR=0, sumG=0, sumB=0;
-                for (int dx = -1; dx <= 1; dx++) {
-                    for (int dy = -1; dy <= 1; dy++) {
-                        if (dx==0 && dy==0) continue;
-                        int nx = x+dx;
-                        int ny = y+dy;
-                        if (cells[nx][ny].type!=0) {
-                            sumR += r[x][y];
-                            sumG += g[x][y];
-                            sumB += b[x][y];
-                        }
-                        else {
-                            sumR += r[nx][ny];
-                            sumG += g[nx][ny];
-                            sumB += b[nx][ny];
-                        }
-                    }
-                }
-                float avgR = sumR * 0.125f;
-                float avgG = sumG * 0.125f;
-                float avgB = sumB * 0.125f;
-                rNext[x][y] = r[x][y]+(avgR-r[x][y])*spreadSpeed;
-                gNext[x][y] = g[x][y]+(avgR-g[x][y])*spreadSpeed;
-                bNext[x][y] = b[x][y]+(avgR-b[x][y])*spreadSpeed;
-                rNext[x][y] *= decay;
-                gNext[x][y] *= decay;
-                bNext[x][y] *= decay;
-                rNext[x][y] += emissiveR[x][y]*boost;
-                gNext[x][y] += emissiveG[x][y]*boost;
-                bNext[x][y] += emissiveB[x][y]*boost;
-                if (rNext[x][y]>50) rNext[x][y] = 50.0f;
-                if (gNext[x][y]>50) gNext[x][y] = 50.0f;
-                if (bNext[x][y]>50) bNext[x][y] = 50.0f;  
-            }
-        }
-        std::memcpy(r,rNext,sizeof(r));
-        std::memcpy(g,rNext,sizeof(g));
-        std::memcpy(b,rNext,sizeof(b));
-    }
     void Draw(int x, int y, Vector2 cameraPosition, float zoom) {
-        Rectangle sourceRect = {0, 0, texture.width, texture.height};
+        Rectangle sourceRect = {0, 0, (float)texture.width, (float)texture.height};
         Rectangle destRect = {
             (x * c_chunkSize - cameraPosition.x) * zoom,
             (y * c_chunkSize - cameraPosition.y) * zoom,
@@ -432,6 +367,19 @@ struct CAGI {
         for (int x = 0; x < c_chunkSize; x++) {
             for (int y = 0; y < c_chunkSize; y++) {
                 Color tileColor = tiles[cells[x][y].type].color;
+                if (cells[x][y].type!=0) {
+
+                    if (hashValues[x][y]&1) {
+                        tileColor.r*=0.95;
+                        tileColor.g*=0.95;
+                        tileColor.b*=0.95;
+                    }
+                    else if (hashValues[x][y]%3==0) {
+                        tileColor.r*=1.05;
+                        tileColor.g*=1.05;
+                        tileColor.b*=1.05;
+                    }
+                }
                 unsigned char finalR = (unsigned char)((tileColor.r / 255.0f) * r[x][y]);
                 unsigned char finalG = (unsigned char)((tileColor.g / 255.0f) * g[x][y]);
                 unsigned char finalB = (unsigned char)((tileColor.b / 255.0f) * b[x][y]);
@@ -441,7 +389,7 @@ struct CAGI {
         UpdateTexture(texture,image.data);
         updated = false;
     }
-    void Init() {
+    void Init(int cx, int cy) {
         updated = false;
         image = GenImageColor(c_chunkSize,c_chunkSize,BLACK);
         texture = LoadTextureFromImage(image);
@@ -450,9 +398,7 @@ struct CAGI {
                 r[x][y] = 0;
                 g[x][y] = 0;
                 b[x][y] = 0;
-                rNext[x][y] = 0;
-                gNext[x][y] = 0;
-                bNext[x][y] = 0;
+                hashValues[x][y] = hash(x+cx*c_chunkSize,y+cy*c_chunkSize);
             }
         }
     }
@@ -506,10 +452,8 @@ struct World {
                 else if (k == "color") current->color = parseColor(v);
                 else if (k == "dissolve" && v != "None") current->dissolves = std::stoi(v);
                 else if (k == "lifeTime" && v != "None") current->lifeTime = std::stoi(v);
-                else if (k == "leaveBehind" && v != "None") {
-                    current->leaveBehind = std::stoi(v);
-                    std::cout<<current->leaveBehind<<"\n";
-                }
+                else if (k == "leaveBehind" && v != "None") current->leaveBehind = std::stoi(v);
+                else if (k=="lightAbsorb") current->lightAbsorb = float(std::stoi(v))/100.0f;
                 else if (k == "fluid" && v != "None") current->fluid = (v == "true");
             }
         }
@@ -654,15 +598,16 @@ struct World {
             }
         }
     }
-    inline void UpdateYLine(int x) {
+    inline void UpdateYLine(int x, std::vector<Tile> &tiles) {
 
         for (int y = 0; y < chunksY*c_chunkSize; y++) {
-            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].r[x%c_chunkSize][y%c_chunkSize] = 0;
-            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].g[x%c_chunkSize][y%c_chunkSize] = 0;
-            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].b[x%c_chunkSize][y%c_chunkSize] = 0;
+            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].r[x%c_chunkSize][y%c_chunkSize] = 30;
+            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].g[x%c_chunkSize][y%c_chunkSize] = 30;
+            lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].b[x%c_chunkSize][y%c_chunkSize] = 30;
         }
         float lightStrength = 1;
         for (int y = 0; y < chunksY*c_chunkSize; y++) {
+            if (!chunkMap[{x/c_chunkSize,y/c_chunkSize}].containsData) y+= c_chunkSize;
             lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].r[x%c_chunkSize][y%c_chunkSize] = WHITE.r*lightStrength;
             lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].g[x%c_chunkSize][y%c_chunkSize] = WHITE.g*lightStrength;
             lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].b[x%c_chunkSize][y%c_chunkSize] = WHITE.b*lightStrength;
@@ -670,15 +615,15 @@ struct World {
             lightMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].updated = true;
                         
             if (chunkMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].blocks[x%c_chunkSize][y%c_chunkSize].type!=0) {
-                lightStrength*=0.99;
+                lightStrength*=(tiles[chunkMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].blocks[x%c_chunkSize][y%c_chunkSize].type].lightAbsorb);
             }
             if (lightStrength<0.1) break;
         }
     }
-    void UpdateLighting() {
+    void UpdateLighting(std::vector<Tile> &tiles) {
         for (int x = 0; x < c_screenWidth; x++) {
             if (toBeUpdatedLine[x]) {
-                UpdateYLine(x);
+                UpdateYLine(x,tiles);
                 toBeUpdatedLine[x]= false;
             }
         }
