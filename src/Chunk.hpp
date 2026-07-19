@@ -51,6 +51,7 @@ struct Chunk {
 	bool containsData;
     int lastUpdate;
     int hash[c_chunkSize][c_chunkSize];
+    bool updatedYLine[c_chunkSize];
     void Draw(int x, int y, Vector2 cameraPosition, float zoom) {
         Rectangle sourceRect = {0, 0, texture.width, texture.height};
         Rectangle destRect = {
@@ -102,6 +103,7 @@ struct Chunk {
                 blocks[x][y + 1].updated = true;
                 blocks[x][y].updated = true;
                 lastUpdate = 0;
+                updatedYLine[x] = true;
                 return true;
             }
             else if (blocks[x][y+1].type!=0 && blocks[x][y+1].type!=255 && !blocks[x][y+1].updated && moveByWeight && tiles[blocks[x][y+1].type].weight<tiles[blocks[x][y].type].weight) {
@@ -112,6 +114,7 @@ struct Chunk {
                 blocks[x][y + 1].updated = true;
                 blocks[x][y].updated = true;
                 lastUpdate = 0;
+                updatedYLine[x] = true;
                 return true;
             }
         }
@@ -121,6 +124,7 @@ struct Chunk {
                 blocks[x][y].type = 0;
                 toBeUpdated = true;
                 lastUpdate = 0;
+                updatedYLine[x] = true;
                 blocks[x][y].updated = true;
                 return true;
             }
@@ -128,6 +132,7 @@ struct Chunk {
                     moveDown[x].type == 0 && swapDown[x].type == 0 && moveByWeight && 
                     !bottomChunkDataCopy[x].updated && 
                     tiles[bottomChunkDataCopy[x].type].weight < tiles[blocks[x][y].type].weight) {
+                updatedYLine[x] = true;
                 swapDown[x] = blocks[x][y];
                 blocks[x][y] = bottomChunkDataCopy[x];
                 toBeUpdated = true;
@@ -169,6 +174,7 @@ struct Chunk {
                 lastUpdate = 0;
                 blocks[x][y].updated = true;
                 topChunkDataCopy[x].updated = true;
+                updatedYLine[x] = true;
                 return true;
             }
         }
@@ -183,6 +189,7 @@ struct Chunk {
                 blocks[x - 1][y].updated = true;
                 blocks[x][y].updated = true;
                 lastUpdate = 0;
+                updatedYLine[x] = true;
                 return true;
             }
             else if (blocks[x-1][y].type!=0 && blocks[x-1][y].type!=255 && !blocks[x-1][y].updated && moveByWeight && tiles[blocks[x-1][y].type].weight<tiles[blocks[x][y].type].weight) {
@@ -193,6 +200,7 @@ struct Chunk {
                 blocks[x - 1][y].updated = true;
                 blocks[x][y].updated = true;
                 lastUpdate = 0;
+                updatedYLine[x] = true;
                 return true;
             }
         }
@@ -203,6 +211,7 @@ struct Chunk {
                 blocks[x][y].updated = true;
                 toBeUpdated = true;
                 lastUpdate = 0;
+                updatedYLine[x] = true;
                 leftChunkDataCopy[y].updated = true;
                 return true;
             }
@@ -217,6 +226,7 @@ struct Chunk {
                 toBeUpdated = true;
                 blocks[x + 1][y].updated = true;
                 blocks[x][y].updated = true;
+                updatedYLine[x] = true;
                 lastUpdate = 0;
                 return true;
             }
@@ -227,6 +237,7 @@ struct Chunk {
                 toBeUpdated = true;
                 blocks[x + 1][y].updated = true;
                 blocks[x][y].updated = true;
+                updatedYLine[x] = true;
                 lastUpdate = 0;
                 return true;
             }
@@ -238,6 +249,7 @@ struct Chunk {
                 toBeUpdated = true;
                 lastUpdate = 0;
                 blocks[x][y].updated = true;
+                updatedYLine[x] = true;
                 rightChunkDataCopy[y].updated = true;
                 return true;
             }
@@ -277,10 +289,10 @@ struct Chunk {
                         blocks[x][y].lifeTime = tiles[type].lifeTime;
                     }
                     blocks[x][y].lifeTime--;
-
+                    updatedYLine[x] = true;
                 }
                 if (tiles[type].dissolves!=-1 && SurroundedByDissolvingTiles(x,y,tiles[type].dissolves)) {
-                    
+                    updatedYLine[x] = true;
                     blocks[x][y].type = tiles[type].leaveBehind;
                     type = blocks[x][y].type;
                 }
@@ -298,12 +310,14 @@ struct Chunk {
                     if (blocks[x][y].direction==0) {
                         if (!MoveRight(x,y,tiles,false)) {
                             blocks[x][y].direction = 1;
+                            updatedYLine[x] = true;
                             continue;
                         }
                     }
                     else {
                         if (!MoveLeft(x,y,tiles,false)) {
                             blocks[x][y].direction = 0;
+                            updatedYLine[x] = true;
                             continue;
                         }
                     
@@ -619,7 +633,12 @@ struct World {
                                 chunkMap[{x+1,y}].lastUpdate = 0;
                             }
                         }
+                    if (chunkMap[{x,y}].updatedYLine[cx]) {
+                        chunkMap[{x,y}].updatedYLine[cx] = false;
+                        toBeUpdatedLine[x*c_chunkSize+cx] = true;
                     }
+                    }
+
                 }
             }
         }

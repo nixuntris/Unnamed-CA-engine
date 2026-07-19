@@ -46,7 +46,8 @@ Chunk GenCleanChunk(int cx, int cy, bool genCleanImage=false) {
         chunk.leftChunkDataCopy[i].type = 0;
         chunk.leftChunkDataCopy[i].direction = 0;
         chunk.leftChunkDataCopy[i].updated = false;
-        
+        chunk.updatedYLine[i] = false;
+
         chunk.rightChunkDataCopy[i].type = 0;
         chunk.rightChunkDataCopy[i].direction = 0;
         chunk.rightChunkDataCopy[i].updated = false;
@@ -87,7 +88,7 @@ Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
         chunk.moveDown[i].type = 0;
         chunk.moveDown[i].direction = 0;
         chunk.moveDown[i].updated = false;
-        
+        chunk.updatedYLine[i] = false;
         chunk.moveUp[i].type = 0;
         chunk.moveUp[i].lifeTime = -1;
         chunk.moveUp[i].direction = 0;

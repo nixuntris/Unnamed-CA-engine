@@ -144,6 +144,7 @@ public:
     
     void Init() {
         
+        world.loadMaterials("data/tile_set.txt");
 		for (int x = 0; x < world.chunksX; x++) {
 			for (int y = 0; y < world.chunksY; y++) {
 				world.chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunkTerrain(x*c_chunkSize,y*c_chunkSize);
@@ -153,10 +154,18 @@ public:
 
             }
 		}
-        for (int x = 0; x < world.chunksX*c_chunkSize; x++) {
+        for (int x = 0; x < 1920; x++) {
             world.toBeUpdatedLine[x] = true;
+
         }
-        world.loadMaterials("data/tile_set.txt");
+ 
+        world.UpdateLighting();
+               
+        for (int x = 0; x < world.chunksX; x++) {
+            for (int y = 0; y < world.chunksY; y++) {
+                world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks, world.materials);
+            }
+        }
     }
 	App() {
 		InitWindow(c_screenWidth, c_screenHeight, "a");
@@ -202,17 +211,31 @@ public:
             endX = std::min(world.chunksX, endX);
             beginY = std::max(0, beginY);
             endY = std::min(world.chunksY, endY);
-            world.UpdateLighting();
+            
+            for (int x = 0; x < world.chunksX; x++) {
+                for (int y = 0; y < world.chunksY; y++) {
+            
+                    bool update = false;
+                    for (int cx = 0; cx < c_chunkSize; cx++) {
+                        if (world.toBeUpdatedLine[cx+x*c_chunkSize]) {
+                            update=true;
+                            break;
+                        }
+                    }
+                    if (world.chunkMap[{x,y}].lastUpdate==0) update =true;
+                    if (update) world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks,world.materials);
+                    
+                }
+            }
             for (int x = beginX; x < endX; x++) {
                 for (int y = beginY; y < endY; y++) {
-                    world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks,world.materials);
-                    
                     
                     world.lightMap[{x,y}].Draw(x,y,player.cameraPosition,player.cameraZoom);
                     
 
                 }
             }
+            world.UpdateLighting();
             player.Control();
             
             player.Editor(&world);
