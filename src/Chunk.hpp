@@ -8,7 +8,7 @@
 #include <cstring>
 const int c_chunkSize = 64;
 const int c_sleepTime = 30;
-const int c_screenWidth = 1920;
+const int c_screenWidth = 1920*4;
 const int c_screenHeight = 1080;
 
 struct Tile {
@@ -543,10 +543,17 @@ struct World {
             }
         }
     }
-    void UpdatePhysics(std::vector<Tile> &tiles) {
-        
-        for (int x = 0; x < chunksX; x++) {
-            for (int y = 0; y < chunksY; y++) {
+    void UpdatePhysics(std::vector<Tile> &tiles, Vector2 cameraPosition, Vector2 screenSize) {
+        int startX = cameraPosition.x-800;
+        if (startX<0) startX = 0;
+        int startY = cameraPosition.y-800;
+        if (startY<0) startY = 0;
+        int endX = cameraPosition.x+screenSize.x+800;
+        if (endX>chunksX*c_chunkSize) endX = chunksX*c_chunkSize;
+        int endY = cameraPosition.y+screenSize.y+800;
+        if (endY>chunksY*c_chunkSize) endY = chunksY*c_chunkSize;
+        for (int x = startX/c_chunkSize; x < endX/c_chunkSize; x++) {
+            for (int y = startY/c_chunkSize; y < endY/c_chunkSize; y++) {
                 if (chunkMap[{x,y}].containsData && chunkMap[{x,y}].lastUpdate<c_sleepTime) {
                     
                     for (int dx = 0; dx < c_chunkSize; dx++)
@@ -673,8 +680,13 @@ struct World {
             if (lightStrength<0.1) break;
         }
     }
-    void UpdateLighting(std::vector<Tile> &tiles) {
-        for (int x = 0; x < c_screenWidth; x++) {
+    void UpdateLighting(std::vector<Tile> &tiles, Vector2 cameraPosition, Vector2 screenSize) {
+        int startX = cameraPosition.x-800;
+        if (startX<0) startX = 0;
+        int endX = cameraPosition.x+screenSize.x+800;
+        if (endX>chunksX*c_chunkSize) endX = chunksX*c_chunkSize;
+        
+        for (int x = startX; x < endX; x++) {
             if (toBeUpdatedLine[x]) {
                 UpdateYLine(x,tiles);
                 toBeUpdatedLine[x]= false;

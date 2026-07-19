@@ -157,7 +157,7 @@ public:
             world.lastUpdated[x] = 0;
         }
  
-        world.UpdateLighting(world.materials);
+        world.UpdateLighting(world.materials,player.cameraPosition,{1920,1080});
                
         for (int x = 0; x < world.chunksX; x++) {
             for (int y = 0; y < world.chunksY; y++) {
@@ -169,7 +169,7 @@ public:
         SetTraceLogLevel(LOG_NONE); 
 		InitWindow(1920, 1080, "a");
         Init();   
-        //SetTargetFPS(60);
+        SetTargetFPS(60);
 
     }
     
@@ -194,7 +194,7 @@ public:
                 WHITE
             );
             //world.Draw(player.cameraPosition,player.cameraZoom);
-            world.UpdatePhysics(world.materials);
+            world.UpdatePhysics(world.materials,player.cameraPosition,{(float)GetScreenWidth(),(float)GetScreenHeight()});
                         
             int beginX = (int)(player.cameraPosition.x / c_chunkSize);
             int endX = (int)((player.cameraPosition.x + (GetScreenWidth() / player.cameraZoom)) / c_chunkSize) + 1;
@@ -231,7 +231,7 @@ public:
                         
                     }
                 }
-                world.UpdateLighting(world.materials);
+                world.UpdateLighting(world.materials,player.cameraPosition,{(float)GetScreenWidth(),(float)GetScreenHeight()});
             
             }
             if (IsKeyDown(KEY_G)) {
