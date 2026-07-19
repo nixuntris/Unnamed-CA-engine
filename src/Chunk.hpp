@@ -426,6 +426,53 @@ struct World {
         while (std::getline(ss, val, ',')) c.push_back(std::stoi(val));
         return {c[0], c[1], c[2], c[3]};
     }
+    void SaveWorld() {
+        Image image = GenImageColor(1920,1080,BLANK);
+        for (int x = 0; x < c_screenWidth; x++) {
+            for (int y = 0; y < c_screenHeight; y++) {
+                int cx = x/c_chunkSize;
+                int cy = y/c_chunkSize;
+                Color color = {chunkMap[{cx,cy}].blocks[x%c_chunkSize][y%c_chunkSize].type,chunkMap[{cx,cy}].blocks[x%c_chunkSize][y%c_chunkSize].lifeTime,chunkMap[{cx,cy}].blocks[x%c_chunkSize][y%c_chunkSize].direction,255};
+                
+                ImageDrawPixel(&image, x,y,color);
+            }
+        }
+        ExportImage(image,"world.png");
+    }
+    void LoadWorld() {
+        Image image = LoadImage("world.png");
+            
+        for (int cx = 0; cx < chunksX; cx++) {
+            for (int cy = 0; cy < chunksY; cy++) {
+                if (chunkMap.find({cx, cy}) == chunkMap.end()) {
+                    chunkMap[{cx, cy}] = Chunk();
+                    chunkMap[{cx, cy}].image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
+                    chunkMap[{cx, cy}].texture = LoadTextureFromImage(chunkMap[{cx, cy}].image);
+                    chunkMap[{cx, cy}].containsData = false;
+                    chunkMap[{cx, cy}].toBeUpdated = true;
+                    chunkMap[{cx, cy}].lastUpdate = 0;
+                    
+                    for (int i = 0; i < c_chunkSize; i++) {
+                        chunkMap[{cx, cy}].moveDown[i].type = 0;
+                        chunkMap[{cx, cy}].moveUp[i].type = 0;
+                        chunkMap[{cx, cy}].moveLeft[i].type = 0;
+                        chunkMap[{cx, cy}].moveRight[i].type = 0;
+                        chunkMap[{cx, cy}].updatedYLine[i] = true;
+                    }
+                }
+            }
+        }
+        for (int x = 0; x < c_screenWidth; x++) {
+            for (int y = 0; y < c_screenHeight; y++) {
+                int cx = x/c_chunkSize;
+                int cy = y/c_chunkSize;
+                Color color = GetImageColor(image,x,y);
+                chunkMap[{cx,cy}].blocks[x%c_chunkSize][y%c_chunkSize].type = color.r;
+                chunkMap[{cx,cy}].blocks[x%c_chunkSize][y%c_chunkSize].lifeTime = color.g;
+                chunkMap[{cx,cy}].blocks[x%c_chunkSize][y%c_chunkSize].direction = color.b;
+            }
+        }
+    }
     void loadMaterials(const std::string& filename) {
         std::ifstream file(filename);
         if (!file.is_open()) return;

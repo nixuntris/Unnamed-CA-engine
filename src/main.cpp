@@ -234,6 +234,12 @@ public:
                 world.UpdateLighting(world.materials);
             
             }
+            if (IsKeyDown(KEY_G)) {
+                world.SaveWorld();
+            }
+            if (IsKeyDown(KEY_H)) {
+                world.LoadWorld();
+            }
             player.Control();
             
             player.Editor(&world);
