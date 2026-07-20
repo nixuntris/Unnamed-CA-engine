@@ -2,20 +2,20 @@
 #include "Chunk.hpp"
 #include "raylib.h"
 
-Chunk GenCleanChunk(int cx, int cy, bool genCleanImage=false) {
-    Chunk chunk;
+CA::Chunk GenCleanChunk(int cx, int cy, bool genCleanImage=false) {
+    CA::Chunk chunk;
     chunk.toBeUpdated = false;
     chunk.containsData = false;
     chunk.lastUpdate = 100;
-    for (int x = 0; x < c_chunkSize; x++) {
-        for (int y = 0; y < c_chunkSize; y++) {
+    for (int x = 0; x < CA::c_chunkSize; x++) {
+        for (int y = 0; y < CA::c_chunkSize; y++) {
             chunk.blocks[x][y].type = 0;
             chunk.blocks[x][y].direction = GetRandomValue(0, 1);
             chunk.blocks[x][y].updated = false;
             
         }
     }
-    for (int i = 0; i < c_chunkSize; i++) {
+    for (int i = 0; i < CA::c_chunkSize; i++) {
         chunk.moveDown[i].type = 0;
         chunk.moveDown[i].direction = 0;
         chunk.moveDown[i].updated = false;
@@ -61,7 +61,7 @@ Chunk GenCleanChunk(int cx, int cy, bool genCleanImage=false) {
         chunk.swapUp[i].updated = false;
     }
     if (genCleanImage) {
-        chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
+        chunk.image = GenImageColor(CA::c_chunkSize, CA::c_chunkSize, SKYBLUE);
         chunk.texture = LoadTextureFromImage(chunk.image);
             
     }
@@ -71,19 +71,19 @@ Chunk GenCleanChunk(int cx, int cy, bool genCleanImage=false) {
 
 
 
-Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
-    Chunk chunk;
+CA::Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
+    CA::Chunk chunk;
     chunk.toBeUpdated = true;
     chunk.containsData = true;
     chunk.lastUpdate = 0;
-    for (int x = 0; x < c_chunkSize; x++) {
-        for (int y = 0; y < c_chunkSize; y++) {
+    for (int x = 0; x < CA::c_chunkSize; x++) {
+        for (int y = 0; y < CA::c_chunkSize; y++) {
             chunk.blocks[x][y].type = 0;
             chunk.blocks[x][y].direction = GetRandomValue(0, 1);
             chunk.blocks[x][y].updated = false;
         }
     }
-    for (int i = 0; i < c_chunkSize; i++) {
+    for (int i = 0; i < CA::c_chunkSize; i++) {
         chunk.moveDown[i].type = 0;
         chunk.moveDown[i].direction = 0;
         chunk.moveDown[i].updated = false;
@@ -128,17 +128,17 @@ Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
         chunk.swapUp[i].updated = false;
     }
     if (genCleaImage) {
-        chunk.image = GenImageColor(c_chunkSize, c_chunkSize, SKYBLUE);
+        chunk.image = GenImageColor(CA::c_chunkSize, CA::c_chunkSize, SKYBLUE);
         chunk.texture = LoadTextureFromImage(chunk.image);
     
     }
     
-    Image caveMap = GenImagePerlinNoise(c_chunkSize, c_chunkSize, 
+    Image caveMap = GenImagePerlinNoise(CA::c_chunkSize, CA::c_chunkSize, 
                                         cx, cy, 0.08f);
     
-    Image heightMap = GenImagePerlinNoise(c_chunkSize, 1, 
+    Image heightMap = GenImagePerlinNoise(CA::c_chunkSize, 1, 
                                           cx,0, 0.02f);
-    for (int x = 0; x < c_chunkSize; x++) {
+    for (int x = 0; x < CA::c_chunkSize; x++) {
         int worldX = cx + x;
         float heightNoise = GetImageColor(heightMap, x, 0).r / 255.0f;
 
@@ -150,7 +150,7 @@ Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
 
         int terrainHeight = baseHeight + (heightNoise - 0.5f) * amplitude;
 
-        for (int y = 0; y < c_chunkSize; y++) {
+        for (int y = 0; y < CA::c_chunkSize; y++) {
             int worldY = cy + y;
             float caveValue = (float)GetImageColor(caveMap, x, y).r / 255.0f;
             bool isCave = caveValue > 0.35f ;
