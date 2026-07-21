@@ -1,5 +1,12 @@
+
 # REV
 A physics engine that implements celullar automata for per pixel simulation inspired by Falling Everything engine developed by Nolla Games and a sound simulation engine that changes depending on the material.
+It's currently on the shelf, I want to play around with other ideas rn.
+<img width="1915" height="1077" alt="Zrzut ekranu 2026-07-21 194615" src="https://github.com/user-attachments/assets/0536893f-17dd-4f97-9d0b-49cb57721115" />
+
+
+https://github.com/user-attachments/assets/37935621-160a-4eb9-bd3d-e7e7144120fc
+
 
 ## Features
 It utilizes a little descriptor system that has an demo stored in tile_set.txt to define how each cell behaves. You can combine characteristics to make new particles.
