@@ -53,84 +53,100 @@ struct Player {
         }
     }
     void Editor(CA::World *world) {
-         bool hover = false;
-            std::string hoveredOver = "";
-            for (int d = 0; d < world->materials.size()-1; d++) {
-                int i = d+1; 
-                if (GUI::Button({(float)i*32+200,200}, {32,32}, world->materials[i].color,BLACK)) {
-                    choosen = i;
-                }
-                if (CheckCollisionRecs({(float)i*32+200,200,32,32},{float(GetMouseX()),float(GetMouseY()),1,1})) {
-                    hover = true;
-                    hoveredOver = world->materials[i].name;
-                }
+        bool hover = false;
+        std::string hoveredOver = "";
+        
+        float guiScale = GetScreenHeight() / 1080.0f;
+        
+        float baseY = 200 * guiScale;
+        float baseX = 200 * guiScale;
+        float buttonSize = 32 * guiScale;
+        float buttonSpacing = 32 * guiScale;
+        float textSize = 16 * guiScale;
+        
+        for (int d = 0; d < world->materials.size()-1; d++) {
+            int i = d+1; 
+            float xPos = (float)i * buttonSpacing + baseX;
+            
+            if (GUI::Button({xPos, baseY}, {buttonSize, buttonSize}, world->materials[i].color, BLACK)) {
+                choosen = i;
             }
             
-            if (GUI::ButtonWithSlider({100, 100}, {200, 40}, GRAY, WHITE, &editSize, 0, 100)) {
+            Rectangle buttonRect = {xPos, baseY, buttonSize, buttonSize};
+            Rectangle mouseRect = {float(GetMouseX()), float(GetMouseY()), 1, 1};
+            if (CheckCollisionRecs(buttonRect, mouseRect)) {
                 hover = true;
+                hoveredOver = world->materials[i].name;
             }
-            if (hoveredOver!="") {
-                DrawText(hoveredOver.c_str(),GetMouseX(),GetMouseY(),16,BLACK);
-            }
-                        
-            Vector2 mousePos = GetMousePosition();
-
-            Vector2 worldMousePos = {
-                (mousePos.x / cameraZoom) + cameraPosition.x,
-                (mousePos.y / cameraZoom) + cameraPosition.y
-            };
-            int endX = 0;
-            int startX = CA::c_screenWidth;
-			if (IsMouseButtonDown(0) && !hover) {
-				for (int x = 0; x < editSize; x++) {
-					for (int y = 0; y < editSize; y++) {
-						
-                        int updateX = x + worldMousePos.x;
-						int updateY = y + worldMousePos.y;
-                        
-                        if (updateX<startX) startX = updateX;
-                        if (updateX>endX) endX = updateX;
-
-                        if (updateX>=0 && updateY>=0 && updateX<CA::c_screenWidth && updateY<CA::c_screenHeight) {
-                                
-                            if (updateX < 0 || updateY < 0) continue;
-                            int chunkX = updateX / CA::c_chunkSize;
-                            int chunkY = updateY / CA::c_chunkSize;
-                            if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
-                            world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].lifeTime = world->materials[choosen].lifeTime;
-                            world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = choosen;
-                            world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
-                            world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
-                        }
-					}
-				}
-			}
-            else if (IsMouseButtonDown(1) && !hover) {
-				for (int x = 0; x < editSize; x++) {
-					for (int y = 0; y < editSize; y++) {
-						int updateX = x + worldMousePos.x;
-						int updateY = y + worldMousePos.y;
-                        if (updateX<startX) startX = updateX;
-                        if (updateX>endX) endX = updateX;
-                        if (updateX>=0 && updateY>=0 && updateX<CA::c_screenWidth && updateY<CA::c_screenHeight) {
-                                
-                            if (updateX < 0 || updateY < 0) continue;
-                            int chunkX = updateX / CA::c_chunkSize;
-                            int chunkY = updateY / CA::c_chunkSize;
-                            if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
-
-                            world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = 0;
-                            world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
-                            world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
-                        }
-					}
-				}
-			}
-            if (startX!=CA::c_screenWidth && endX!=0) {
-                for (int x = startX; x < endX; x++) {
-                    world->toBeUpdatedLine[x] = true;
+        }
+        
+        float sliderWidth = 200 * guiScale;
+        float sliderHeight = 40 * guiScale;
+        float sliderX = 100 * guiScale;
+        float sliderY = 100 * guiScale;
+        
+        if (GUI::ButtonWithSlider({sliderX, sliderY}, {sliderWidth, sliderHeight}, GRAY, WHITE, &editSize, 0, 100)) {
+            hover = true;
+        }
+        
+        if (hoveredOver != "") {
+            DrawText(hoveredOver.c_str(), GetMouseX(), GetMouseY(), textSize, BLACK);
+        }
+        Vector2 mousePos = GetMousePosition();
+        Vector2 worldMousePos = {
+            (mousePos.x / cameraZoom) + cameraPosition.x,
+            (mousePos.y / cameraZoom) + cameraPosition.y
+        };
+        
+        int endX = 0;
+        int startX = CA::c_screenWidth;
+        
+        if (IsMouseButtonDown(0) && !hover) {
+            for (int x = 0; x < editSize; x++) {
+                for (int y = 0; y < editSize; y++) {
+                    int updateX = x + worldMousePos.x;
+                    int updateY = y + worldMousePos.y;
+                    
+                    if (updateX < startX) startX = updateX;
+                    if (updateX > endX) endX = updateX;
+                    
+                    if (updateX >= 0 && updateY >= 0 && updateX < CA::c_screenWidth && updateY < CA::c_screenHeight) {
+                        if (updateX < 0 || updateY < 0) continue;
+                        int chunkX = updateX / CA::c_chunkSize;
+                        int chunkY = updateY / CA::c_chunkSize;
+                        if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
+                        world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].lifeTime = world->materials[choosen].lifeTime;
+                        world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = choosen;
+                        world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
+                        world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
+                    }
                 }
             }
+        }
+        else if (IsMouseButtonDown(1) && !hover) {
+            for (int x = 0; x < editSize; x++) {
+                for (int y = 0; y < editSize; y++) {
+                    int updateX = x + worldMousePos.x;
+                    int updateY = y + worldMousePos.y;
+                    if (updateX < startX) startX = updateX;
+                    if (updateX > endX) endX = updateX;
+                    if (updateX >= 0 && updateY >= 0 && updateX < CA::c_screenWidth && updateY < CA::c_screenHeight) {
+                        if (updateX < 0 || updateY < 0) continue;
+                        int chunkX = updateX / CA::c_chunkSize;
+                        int chunkY = updateY / CA::c_chunkSize;
+                        if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
+                        world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = 0;
+                        world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
+                        world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
+                    }
+                }
+            }
+        }
+        if (startX != CA::c_screenWidth && endX != 0) {
+            for (int x = startX; x < endX; x++) {
+                world->toBeUpdatedLine[x] = true;
+            }
+        }
     }
 };
 
@@ -169,6 +185,7 @@ public:
     }
 	App() {
         SetTraceLogLevel(LOG_NONE); 
+        SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 		InitWindow(1920, 1080, "a");
         Init();   
         //SetTargetFPS(60);
