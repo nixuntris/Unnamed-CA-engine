@@ -364,27 +364,55 @@ namespace CA {
             };
             DrawTexturePro(texture, sourceRect, destRect, Vector2{0, 0}, 0.0f, WHITE);
         }   
-        void Update(Cell cells[c_chunkSize][c_chunkSize], std::vector<Tile> &tiles) {
-            for (int x = 0; x < c_chunkSize; x++) {
-                for (int y = 0; y < c_chunkSize; y++) {
-                    Color tileColor = tiles[cells[x][y].type].color;
-                    if (cells[x][y].type!=0) {
+        void Update(Cell cells[c_chunkSize][c_chunkSize], std::vector<Tile> &tiles, bool renderLight) {
+            if (renderLight) {
+                    
+                for (int x = 0; x < c_chunkSize; x++) {
+                    for (int y = 0; y < c_chunkSize; y++) {
+                        Color tileColor = tiles[cells[x][y].type].color;
+                        if (cells[x][y].type!=0) {
 
-                        if (hashValues[x][y]&1) {
-                            tileColor.r*=0.95;
-                            tileColor.g*=0.95;
-                            tileColor.b*=0.95;
+                            if (hashValues[x][y]&1) {
+                                tileColor.r*=0.95;
+                                tileColor.g*=0.95;
+                                tileColor.b*=0.95;
+                            }
+                            else if (hashValues[x][y]%3==0) {
+                                tileColor.r*=1.05;
+                                tileColor.g*=1.05;
+                                tileColor.b*=1.05;
+                            }
                         }
-                        else if (hashValues[x][y]%3==0) {
-                            tileColor.r*=1.05;
-                            tileColor.g*=1.05;
-                            tileColor.b*=1.05;
-                        }
+                        unsigned char finalR = (unsigned char)((tileColor.r / 255.0f) * r[x][y]);
+                        unsigned char finalG = (unsigned char)((tileColor.g / 255.0f) * g[x][y]);
+                        unsigned char finalB = (unsigned char)((tileColor.b / 255.0f) * b[x][y]);
+                        ImageDrawPixel(&image,x,y,{finalR,finalG,finalB,255});
                     }
-                    unsigned char finalR = (unsigned char)((tileColor.r / 255.0f) * r[x][y]);
-                    unsigned char finalG = (unsigned char)((tileColor.g / 255.0f) * g[x][y]);
-                    unsigned char finalB = (unsigned char)((tileColor.b / 255.0f) * b[x][y]);
-                    ImageDrawPixel(&image,x,y,{finalR,finalG,finalB,255});
+                }
+            }
+            else {
+                    
+                for (int x = 0; x < c_chunkSize; x++) {
+                    for (int y = 0; y < c_chunkSize; y++) {
+                        Color tileColor = tiles[cells[x][y].type].color;
+                        if (cells[x][y].type!=0) {
+
+                            if (hashValues[x][y]&1) {
+                                tileColor.r*=0.95;
+                                tileColor.g*=0.95;
+                                tileColor.b*=0.95;
+                            }
+                            else if (hashValues[x][y]%3==0) {
+                                tileColor.r*=1.05;
+                                tileColor.g*=1.05;
+                                tileColor.b*=1.05;
+                            }
+                        }
+                        unsigned char finalR = (unsigned char)((tileColor.r / 255.0f) * 255);
+                        unsigned char finalG = (unsigned char)((tileColor.g / 255.0f) * 255);
+                        unsigned char finalB = (unsigned char)((tileColor.b / 255.0f) * 255);
+                        ImageDrawPixel(&image,x,y,{finalR,finalG,finalB,255});
+                    }
                 }
             }
             UpdateTexture(texture,image.data);

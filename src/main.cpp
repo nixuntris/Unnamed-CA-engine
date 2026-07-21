@@ -11,7 +11,7 @@
 #include "Chunk.hpp"
 #include "Terrain.hpp"
 #include "Physics.hpp"
-
+const bool renderLight = false;
 struct Player {
     Vector2 cameraPosition;
     float cameraZoom;
@@ -139,6 +139,7 @@ class App {
     CA::World world;
     Player player;
     Physics::Map* map;
+    std::vector<Physics::RigidBody> bodies;
 public:
     
     void Init() {
@@ -162,7 +163,7 @@ public:
                
         for (int x = 0; x < world.chunksX; x++) {
             for (int y = 0; y < world.chunksY; y++) {
-                world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks, world.materials);
+                world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks, world.materials,renderLight);
             }
         }
     }
@@ -170,7 +171,7 @@ public:
         SetTraceLogLevel(LOG_NONE); 
 		InitWindow(1920, 1080, "a");
         Init();   
-        SetTargetFPS(60);
+        //SetTargetFPS(60);
         map = new Physics::Map;
     }
     
@@ -186,8 +187,23 @@ public:
                     (mousePos.y /  player.cameraZoom) +  player.cameraPosition.y
                 };
                 
-                map->balls.push_back({ worldPos.x,worldPos.y, (int)map->balls.size(), 
-                                   0, 0, Physics::colors[GetRandomValue(0, 4)], false, false, (float)GetRandomValue(5, 12) });
+                Physics::RigidBody rigidBody;
+                rigidBody.pos = worldPos;
+                rigidBody.Init(16,16);
+                for (int x = 0; x < 16; x++) {
+                    for (int y = 0; y < 16; y++) {
+                        
+                        if (Vector2Distance({(float)x,(float)y},{8,8})<6) {
+                            ImageDrawPixel(&rigidBody.image,x,y,WHITE);
+
+                        }
+
+                    }
+                }
+                rigidBody.Gen(map);
+                bodies.push_back(rigidBody);
+               // map->balls.push_back({ worldPos.x,worldPos.y, (int)map->balls.size(), 
+             //                      0, 0, Physics::colors[GetRandomValue(0, 4)], false, false, (float)GetRandomValue(5, 12) });
             }    
             DrawRectangleLines(
                 -player.cameraPosition.x * player.cameraZoom,
@@ -248,7 +264,7 @@ public:
                             }
                         }
                         if (world.chunkMap[{x,y}].lastUpdate==0) update =true;
-                        if (update) world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks,world.materials);
+                        if (update) world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks,world.materials,renderLight);
                         
                     }
                 }
@@ -269,6 +285,10 @@ public:
             }
             if (IsKeyDown(KEY_H)) {
                 world.LoadWorld();
+            }
+            for (auto &t : bodies) {
+                t.UpdateRigidBody(map);
+                t.Draw(player.cameraPosition,player.cameraZoom);
             }
             player.Control();
             

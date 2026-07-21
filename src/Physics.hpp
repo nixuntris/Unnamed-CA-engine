@@ -58,7 +58,7 @@ namespace Physics {
                     c.ids[c.count++] = i;
                 }
                 else {
-                    std::cout<<"WARNING: MAX COLLISION SPHERES PER CHUNK REACHED";
+                    //std::cout<<"WARNING: MAX COLLISION SPHERES PER CHUNK REACHED";
                 }
             }
         }
@@ -185,5 +185,154 @@ namespace Physics {
             
         }
     }
+    struct RigidBody {
+        Image image;
+        Texture texture;
+        std::vector<int> ballPointers;
+        Vector2 size;
+        Vector2 pos;
+        Vector2 velocity;
+        Vector2 acceleration;
+        float mass;
+        float rotation;
+        float angularVelocity;
+        float momentOfInertia;
+        std::vector<Vector2> relativeOffsets;
+        void Init(int wx, int wy) {
+            this->image = GenImageColor(wx,wy,BLANK);
+            this->size = {(float)wx,(float)wy};
+            this->velocity = {0,0};
+            this->acceleration = {0,0};
+            this->mass = 1;    
+            this->angularVelocity = 0;
+            this->rotation = 0;
+            this->momentOfInertia = (mass*(wx*wx+wy*wy))/12.0f;
+        }
+        void Gen(Map *map) {
+            for (int x = 0; x < this->size.x/4; x++) {
+                for (int y = 0; y < this->size.y/4; y++) {
+                    int cx = x*4;
+                    int cy = y*4;
+                    
+                    for (int dx = 0; dx < 4; dx++) {
+                        for (int dy = 0; dy < 4; dy++) {
+                            Color col = GetImageColor(image,cx+dx,cy+dy);
+                            if (col.r!=0 || col.g!=0 || col.b!=0) {
+                                Ball ball;
+                                ball.x_vel = 0;
+                                ball.y_vel = 0;
+                                ball.held = false;
+                                ball.ownedByObject = true;
+                                ball.x = cx+2+pos.x;
+                                ball.y = cy+2+pos.y;
+                                ball.radius = 2;
+                                ball.color = BLACK;
+                                relativeOffsets.push_back({float(2+cx),float(2+cy)});
+                                ball.id = map->balls.size();
+                                ballPointers.push_back(map->balls.size());
+                                map->balls.push_back(ball);
+                                break;
+                                break;
+                            }
+                        }
+                    }
+                }   
+            }
+            texture = LoadTextureFromImage(image);
+        }
+        void ApplyForcesFromBalls(Map* map) {
+            Vector2 netForce = {0, 0};
+            float netTorque = 0;
+            for (int i = 0; i < ballPointers.size(); i++) {
+                int ballIdx = ballPointers[i];
+                if (ballIdx >= 0 && ballIdx < (int)map->balls.size()) {
+                    Ball& ball = map->balls[ballIdx];
+                    Vector2 localPos = relativeOffsets[i];
+                    Vector2 worldPos = {
+                        pos.x + localPos.x * cosf(rotation) - localPos.y * sinf(rotation),
+                        pos.y + localPos.x * sinf(rotation) + localPos.y * cosf(rotation)
+                    };
+                    Vector2 displacement = {
+                        worldPos.x - ball.x,
+                        worldPos.y - ball.y
+                    };
+                    
+                    float dist = sqrtf(displacement.x * displacement.x + displacement.y * displacement.y);
+                    
+                    if (dist > 0.001f) {
+                        Vector2 direction = {
+                            displacement.x / dist,
+                            displacement.y / dist
+                        };
+                        
+                        float springConstant = 0.5f; 
+                        float forceMagnitude = springConstant * dist;
+                        
+                        Vector2 force = {
+                            direction.x * forceMagnitude,
+                            direction.y * forceMagnitude
+                        };
+                        
+                        ball.x_vel += force.x * 0.01f;
+                        ball.y_vel += force.y * 0.01f;
+                        
+                        netForce.x -= force.x;
+                        netForce.y -= force.y;
+                        
+                        float torque = localPos.x * (-force.y) - localPos.y * (-force.x);
+                        netTorque += torque;
+                    }
+                }
+            }
+            
+            acceleration.x = netForce.x / mass;
+            acceleration.y = netForce.y / mass;
+            
+            angularVelocity += netTorque / momentOfInertia;
+        }
+        void UpdatePhysics() {
+            velocity.x += acceleration.x;
+            velocity.y += acceleration.y;
+            pos.x += velocity.x;
+            pos.y += velocity.y;
 
+            rotation += angularVelocity;
+
+            velocity.x *= 0.99f;
+            velocity.y *= 0.99f;
+            angularVelocity *= 0.99f;
+        }
+        void SetVelocity(Vector2 newVelocity) {
+            velocity = newVelocity;
+        }
+        void Move(Map *map) {
+            for (int i = 0; i < ballPointers.size(); i++) {
+                int ballIdx = ballPointers[i];
+                if (ballIdx>=0 && ballIdx < (int)map->balls.size()) {
+                    Vector2 relativeOffset = relativeOffsets[i];
+                    float rotatedX = relativeOffset.x*cosf(rotation) - relativeOffset.y*sinf(rotation);
+                    float rotatedY = relativeOffset.x*sinf(rotation) + relativeOffset.y*cosf(rotation);
+                    map->balls[ballIdx].x = pos.x+rotatedX;
+                    map->balls[ballIdx].y = pos.y+rotatedY;
+                    
+                    
+                }
+            }
+        }
+        void UpdateRigidBody(Map *map) {
+            ApplyForcesFromBalls(map);
+            UpdatePhysics();
+            Move(map);
+        }
+        void Draw(Vector2 cameraPosition, float zoom) {
+            Rectangle sourceRect = {0, 0, texture.width, texture.height};
+            Rectangle destRect = {
+                (pos.x - cameraPosition.x) * zoom,
+                (pos.y - cameraPosition.y) * zoom,
+                texture.width * zoom,
+                texture.height * zoom
+            };
+            DrawTexturePro(texture, sourceRect, destRect, Vector2{0, 0}, 0.0f, WHITE);
+        }   
+    };
 }

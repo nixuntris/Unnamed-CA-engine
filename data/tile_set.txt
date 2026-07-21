@@ -113,7 +113,7 @@ color = (120,72,32,255)
 dissolve = None
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 90
+lightAbsorb = 98
 
 grass:
 falls = false
@@ -126,7 +126,7 @@ color = (70,180,50,255)
 dissolve = None
 leaveBehind = 9
 lifeTime = -1
-lightAbsorb = 90
+lightAbsorb = 98
 
 mud:
 falls = false
