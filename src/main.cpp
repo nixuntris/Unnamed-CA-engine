@@ -11,7 +11,7 @@
 #include "Chunk.hpp"
 #include "Terrain.hpp"
 #include "Physics.hpp"
-const bool renderLight = false;
+const bool renderLight = true;
 struct Player {
     Vector2 cameraPosition;
     float cameraZoom;
@@ -163,23 +163,23 @@ public:
         world.loadMaterials("data/tile_set.txt");
 		for (int x = 0; x < world.chunksX; x++) {
 			for (int y = 0; y < world.chunksY; y++) {
-				world.chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunkTerrain(x*CA::c_chunkSize,y*CA::c_chunkSize);
-                CA::CAGI cagi;
-                cagi.Init(x,y);
-                world.lightMap[std::tuple<int, int>{x, y}] = cagi; 
+				//world.chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunkTerrain(x*CA::c_chunkSize,y*CA::c_chunkSize);
+                //CA::CAGI cagi;
+                //cagi.Init(x,y);
+                //world.lightMap[std::tuple<int, int>{x, y}] = cagi; 
 
             }
 		}
         for (int x = 0; x < CA::c_screenWidth; x++) {
-            world.toBeUpdatedLine[x] = true;
-            world.lastUpdated[x] = 0;
+            //world.toBeUpdatedLine[x] = true;
+            //world.lastUpdated[x] = 0;
         }
  
-        world.UpdateLighting(world.materials,player.cameraPosition,{1920,1080});
+        //world.UpdateLighting(world.materials,player.cameraPosition,{1920,1080});
                
         for (int x = 0; x < world.chunksX; x++) {
             for (int y = 0; y < world.chunksY; y++) {
-                world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks, world.materials,renderLight);
+          //      world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks, world.materials,renderLight);
             }
         }
     }
@@ -232,6 +232,7 @@ public:
             //world.Draw(player.cameraPosition,player.cameraZoom);
             world.UpdatePhysics(world.materials,player.cameraPosition,{(float)GetScreenWidth(),(float)GetScreenHeight()});
                         
+            std::cout<<"After physics \n";
             int beginX = (int)(player.cameraPosition.x / CA::c_chunkSize);
             int endX = (int)((player.cameraPosition.x + (GetScreenWidth() / player.cameraZoom)) / CA::c_chunkSize) + 1;
             int beginY = (int)(player.cameraPosition.y / CA::c_chunkSize);
@@ -262,32 +263,46 @@ public:
             }
             for (int x = beginX; x < endX; x++) {
                 for (int y = beginY; y < endY; y++) {
-                    
+                    if (!world.lightMap[{x,y}].generated) {
+                        CA::CAGI cagi;
+                        cagi.Init(x,y);
+                        world.lightMap[std::tuple<int, int>{x, y}] = cagi; 
+                        world.lightMap[{x,y}].generated = true;
+                    }
+                    if (!world.chunkMap[{x,y}].generated) {
+                        world.chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunkTerrain(x*CA::c_chunkSize,y*CA::c_chunkSize);
+                        world.chunkMap[{x,y}].generated = true;
+                    }
                     world.lightMap[{x,y}].Draw(x,y,player.cameraPosition,player.cameraZoom);
-                    
-
                 }
             }
-            if (frame%3==0) {
-                    
-                for (int x = 0; x < world.chunksX; x++) {
+            std::cout<<"After the draw loop\n";
+            
+            if (frame%3==0)  {
+                bool hasChunks = false;
+                for (int x = beginX; x < endX; x++) {
                     for (int y = 0; y < world.chunksY; y++) {
-                
-                        bool update = false;
-                        for (int cx = 0; cx < CA::c_chunkSize; cx++) {
-                            if (world.toBeUpdatedLine[cx+x*CA::c_chunkSize]) {
-                                update=true;
-                                break;
-                            }
-                        }
-                        if (world.chunkMap[{x,y}].lastUpdate==0) update =true;
-                        if (update) world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks,world.materials,renderLight);
                         
+                        if (world.chunkMap[{x,y}].generated && world.lightMap[{x,y}].generated) {
+                            hasChunks = true;
+                            bool update = false;
+                            for (int cx = 0; cx < CA::c_chunkSize; cx++) {
+                                if (world.toBeUpdatedLine[cx+x*CA::c_chunkSize]) {
+                                    update=true;
+                                    break;
+                                }
+                            }
+                            if (world.chunkMap[{x,y}].lastUpdate==0) update =true;
+                            if (update) world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks,world.materials,renderLight);
+                            
+                        }
                     }
                 }
                 world.UpdateLighting(world.materials,player.cameraPosition,{(float)GetScreenWidth(),(float)GetScreenHeight()});
             
             }
+            std::cout<<"After lighting \n";
+     //       world.CalculateTotalDeltaDifference();
             for (auto& b : map->balls){          
                 Rectangle destRect = {
                     (b.x - player.cameraPosition.x) * player.cameraZoom,
@@ -297,6 +312,7 @@ public:
                 }; 
                 DrawCircle(destRect.x, destRect.y, destRect.width, b.color); 
             } 
+            std::cout<<"After balls \n";
             if (IsKeyDown(KEY_G)) {
                 world.SaveWorld();
             }
@@ -304,8 +320,8 @@ public:
                 world.LoadWorld();
             }
             for (auto &t : bodies) {
-                t.UpdateRigidBody(map);
-                t.Draw(player.cameraPosition,player.cameraZoom);
+              //  t.UpdateRigidBody(map);
+                //t.Draw(player.cameraPosition,player.cameraZoom);
             }
             player.Control();
             

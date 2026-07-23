@@ -33,6 +33,7 @@ namespace CA {
         int lifeTime;
     };
     struct Chunk {
+        bool generated = false;
         Cell blocks[c_chunkSize][c_chunkSize];
 
         Cell moveDown[c_chunkSize];
@@ -44,7 +45,7 @@ namespace CA {
         Cell bottomChunkDataCopy[c_chunkSize]; //Y- Copy
         Cell leftChunkDataCopy[c_chunkSize]; //X- copy
         Cell rightChunkDataCopy[c_chunkSize]; //X+ copy
-
+        Cell oldValues[c_chunkSize][c_chunkSize];
         Cell swapDown[c_chunkSize];   // For weight-based swaps going down
         Cell swapUp[c_chunkSize];     // For weight-based swaps going up
         Image image;
@@ -63,6 +64,33 @@ namespace CA {
             };
             DrawTexturePro(texture, sourceRect, destRect, Vector2{0, 0}, 0.0f, WHITE);
         }   
+        int CalculateTheDelta() {
+            struct Delta {
+                uint8_t x;
+                uint8_t y;
+                uint8_t type;
+            };
+            Delta deltas[c_chunkSize*c_chunkSize];
+            int r= 0;
+            for (int x = 0; x < c_chunkSize; x++) {
+                for (int y = 0; y < c_chunkSize; y++) {
+                    if (oldValues[x][y].type!=blocks[x][y].type) {
+                        deltas[r].x = x;
+                        deltas[r].y = y;
+                        deltas[r].type = blocks[x][y].type;
+
+                        r++;
+                    }
+                }
+            }
+            
+            for (int x = 0; x < c_chunkSize; x++) {
+                for (int y = 0; y < c_chunkSize; y++) {
+                    oldValues[x][y].type = blocks[x][y].type;
+                }
+            }
+            return r;
+        }
         void UpdateDisplayBuffer(std::vector<Tile> &tiles) {
             containsData = false;
             Color* pixels = (Color*)image.data;
@@ -347,6 +375,7 @@ namespace CA {
     }
 
     struct CAGI {
+        bool generated = false;
         float r[c_chunkSize][c_chunkSize];
         float g[c_chunkSize][c_chunkSize];
         float b[c_chunkSize][c_chunkSize];
@@ -583,7 +612,10 @@ namespace CA {
             if (endY>chunksY*c_chunkSize) endY = chunksY*c_chunkSize;
             for (int x = startX/c_chunkSize; x < endX/c_chunkSize; x++) {
                 for (int y = startY/c_chunkSize; y < endY/c_chunkSize; y++) {
-                    if (chunkMap[{x,y}].containsData && chunkMap[{x,y}].lastUpdate<c_sleepTime) {
+                    if (!chunkMap[{x,y}].generated) {
+                        continue;
+                    }
+                    if (chunkMap[{x,y}].containsData && chunkMap[{x,y}].lastUpdate<c_sleepTime && chunkMap[{x,y}].generated) {
                         
                         for (int dx = 0; dx < c_chunkSize; dx++)
                             for (int dy = 0; dy < c_chunkSize; dy++)
@@ -673,40 +705,62 @@ namespace CA {
             
             for (int x = 0; x < chunksX; x++) {
                 for (int y = 0; y < chunksY; y++) {
-                    for (int i = 0; i < c_chunkSize; i++) {
-                        chunkMap[{x,y}].moveDown[i].type = 0;
-                        chunkMap[{x,y}].moveUp[i].type = 0;
-                        chunkMap[{x,y}].moveLeft[i].type = 0;
-                        chunkMap[{x,y}].moveRight[i].type = 0;
+                    if (chunkMap[{x,y}].generated) {
+                        for (int i = 0; i < c_chunkSize; i++) {
+                            chunkMap[{x,y}].moveDown[i].type = 0;
+                            chunkMap[{x,y}].moveUp[i].type = 0;
+                            chunkMap[{x,y}].moveLeft[i].type = 0;
+                            chunkMap[{x,y}].moveRight[i].type = 0;
+                        }
                     }
+                    
                 }
             }
+        }
+        void CalculateTotalDeltaDifference() {
+            int dif = 0;
+            for (int x = 0; x < chunksX; x++) {
+                for (int y = 0; y < chunksY; y++) {
+                    if (chunkMap[{x,y}].generated) {
+                        dif += chunkMap[{x,y}].CalculateTheDelta();
+                    }
+                    
+                }   
+            }
+            std::cout<<dif<<"\n";
         }
         inline void UpdateYLine(int x, std::vector<Tile> &tiles) {
 
             for (int y = 0; y < lastUpdated[x]; y++) {
-                auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
+                //if (![{x/c_chunkSize,y/c_chunkSize}].generated) continue;
+                //auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
+                //if (chunkMap[{x/c_chunkSize,y/c_chunkSize}].generated) {
 
-                chunk.r[x%c_chunkSize][y%c_chunkSize] = 30;
-                chunk.g[x%c_chunkSize][y%c_chunkSize] = 30;
-                chunk.b[x%c_chunkSize][y%c_chunkSize] = 30;
+                  //  chunk.r[x%c_chunkSize][y%c_chunkSize] = 30;
+                    //chunk.g[x%c_chunkSize][y%c_chunkSize] = 30;
+                   // chunk.b[x%c_chunkSize][y%c_chunkSize] = 30;
+                //}
             }
+            
             float lightStrength = 1;
             for (int y = 0; y < chunksY*c_chunkSize; y++) {
                 auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
+                if (!chunk.generated) break;
                 if (!chunkMap[{x/c_chunkSize,y/c_chunkSize}].containsData) y+= c_chunkSize;
-                
-                chunk.r[x%c_chunkSize][y%c_chunkSize] = WHITE.r*lightStrength;
-                chunk.g[x%c_chunkSize][y%c_chunkSize] = WHITE.g*lightStrength;
-                chunk.b[x%c_chunkSize][y%c_chunkSize] = WHITE.b*lightStrength;
+                if (chunkMap[{x/c_chunkSize,y/c_chunkSize}].generated) {
 
-                chunk.updated = true;
-                            
-                if (chunkMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].blocks[x%c_chunkSize][y%c_chunkSize].type!=0) {
-                    lightStrength*=(tiles[chunkMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].blocks[x%c_chunkSize][y%c_chunkSize].type].lightAbsorb);
+                    chunk.r[x%c_chunkSize][y%c_chunkSize] = WHITE.r*lightStrength;
+                    chunk.g[x%c_chunkSize][y%c_chunkSize] = WHITE.g*lightStrength;
+                    chunk.b[x%c_chunkSize][y%c_chunkSize] = WHITE.b*lightStrength;
+
+                    chunk.updated = true;
+                                
+                    if (chunkMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].blocks[x%c_chunkSize][y%c_chunkSize].type!=0) {
+                        lightStrength*=(tiles[chunkMap[std::tuple<int,int>{x/c_chunkSize,y/c_chunkSize}].blocks[x%c_chunkSize][y%c_chunkSize].type].lightAbsorb);
+                    }
+                    lastUpdated[x] = y;
+                    if (lightStrength<0.1) break;
                 }
-                lastUpdated[x] = y;
-                if (lightStrength<0.1) break;
             }
         }
         void UpdateLighting(std::vector<Tile> &tiles, Vector2 cameraPosition, Vector2 screenSize) {

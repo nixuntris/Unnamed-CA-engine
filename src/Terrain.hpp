@@ -12,6 +12,9 @@ CA::Chunk GenCleanChunk(int cx, int cy, bool genCleanImage=false) {
             chunk.blocks[x][y].type = 0;
             chunk.blocks[x][y].direction = GetRandomValue(0, 1);
             chunk.blocks[x][y].updated = false;
+            chunk.oldValues[x][y].type = 0;
+            chunk.oldValues[x][y].direction = GetRandomValue(0, 1);
+            chunk.oldValues[x][y].updated = false;
             
         }
     }
@@ -81,6 +84,9 @@ CA::Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
             chunk.blocks[x][y].type = 0;
             chunk.blocks[x][y].direction = GetRandomValue(0, 1);
             chunk.blocks[x][y].updated = false;
+            chunk.oldValues[x][y].type = 0;
+            chunk.oldValues[x][y].direction = GetRandomValue(0, 1);
+            chunk.oldValues[x][y].updated = false;
         }
     }
     for (int i = 0; i < CA::c_chunkSize; i++) {

@@ -54,3 +54,10 @@ Select C++ (GDB/LLDB) when prompted
 ## Dependencies 
 Raylib 5.5
 GCC C++14
+
+# Technical details
+It utilizes dirty chunks to not update terrain which is "sleeping" aka no change in some amount of time.
+It uses chunks for dynamically storing data, it allows me to implement multi threading in the future and allocate resources on the fly.
+Rendering and physics are decoupled.
+Light is done as a simple direct floodfill.
+Data is stored as a struct which contains direction, type, life time and whether it was updated.
