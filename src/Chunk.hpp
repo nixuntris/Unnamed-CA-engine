@@ -9,8 +9,8 @@
 namespace CA {
     const int c_chunkSize = 64;
     const int c_sleepTime = 30;
-    const int c_screenWidth = 1920;
-    const int c_screenHeight = 1080;
+    const int c_screenWidth = 1920*4;
+    const int c_screenHeight = 1080*4;
 
     struct Tile {
         std::string name;
@@ -485,7 +485,7 @@ namespace CA {
             return {c[0], c[1], c[2], c[3]};
         }
         void SaveWorld() {
-            Image image = GenImageColor(1920,1080,BLANK);
+            Image image = GenImageColor(c_screenWidth,c_screenHeight,BLANK);
             for (int x = 0; x < c_screenWidth; x++) {
                 for (int y = 0; y < c_screenHeight; y++) {
                     int cx = x/c_chunkSize;
@@ -610,6 +610,7 @@ namespace CA {
             if (endX>chunksX*c_chunkSize) endX = chunksX*c_chunkSize;
             int endY = cameraPosition.y+screenSize.y+800;
             if (endY>chunksY*c_chunkSize) endY = chunksY*c_chunkSize;
+            #pragma omp parallel for collapse(2)
             for (int x = startX/c_chunkSize; x < endX/c_chunkSize; x++) {
                 for (int y = startY/c_chunkSize; y < endY/c_chunkSize; y++) {
                     if (!chunkMap[{x,y}].generated) {
@@ -702,10 +703,11 @@ namespace CA {
                     }
                 }
             }
+             #pragma omp parallel for collapse(2)
             
             for (int x = 0; x < chunksX; x++) {
                 for (int y = 0; y < chunksY; y++) {
-                    if (chunkMap[{x,y}].generated) {
+                    if (chunkMap[{x,y}].generated && chunkMap[{x,y}].lastUpdate==0) {
                         for (int i = 0; i < c_chunkSize; i++) {
                             chunkMap[{x,y}].moveDown[i].type = 0;
                             chunkMap[{x,y}].moveUp[i].type = 0;
@@ -732,20 +734,18 @@ namespace CA {
         inline void UpdateYLine(int x, std::vector<Tile> &tiles) {
 
             for (int y = 0; y < lastUpdated[x]; y++) {
-                //if (![{x/c_chunkSize,y/c_chunkSize}].generated) continue;
-                //auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
-                //if (chunkMap[{x/c_chunkSize,y/c_chunkSize}].generated) {
-
-                  //  chunk.r[x%c_chunkSize][y%c_chunkSize] = 30;
+              //  if (lightMap[{x/c_chunkSize,y/c_chunkSize}].generated) {
+                    //auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
+                
+                    //chunk.r[x%c_chunkSize][y%c_chunkSize] = 30;
                     //chunk.g[x%c_chunkSize][y%c_chunkSize] = 30;
-                   // chunk.b[x%c_chunkSize][y%c_chunkSize] = 30;
+               //     //chunk.b[x%c_chunkSize][y%c_chunkSize] = 30;
                 //}
             }
             
             float lightStrength = 1;
             for (int y = 0; y < chunksY*c_chunkSize; y++) {
                 auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
-                if (!chunk.generated) break;
                 if (!chunkMap[{x/c_chunkSize,y/c_chunkSize}].containsData) y+= c_chunkSize;
                 if (chunkMap[{x/c_chunkSize,y/c_chunkSize}].generated) {
 
@@ -769,6 +769,7 @@ namespace CA {
             int endX = cameraPosition.x+screenSize.x+800;
             if (endX>chunksX*c_chunkSize) endX = chunksX*c_chunkSize;
             
+            #pragma omp parallel for 
             for (int x = startX; x < endX; x++) {
                 if (toBeUpdatedLine[x]) {
                     UpdateYLine(x,tiles);

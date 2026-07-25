@@ -11,6 +11,7 @@
 #include "Chunk.hpp"
 #include "Terrain.hpp"
 #include "Physics.hpp"
+#include <chrono>
 const bool renderLight = true;
 struct Player {
     Vector2 cameraPosition;
@@ -19,7 +20,7 @@ struct Player {
     int choosen = 0;
     void Init() {
         cameraPosition = {0,0};
-        cameraZoom = 0;
+        cameraZoom = 1;
     }
     void Control() {
         
@@ -161,78 +162,40 @@ public:
     void Init() {
         
         world.loadMaterials("data/tile_set.txt");
-		for (int x = 0; x < world.chunksX; x++) {
-			for (int y = 0; y < world.chunksY; y++) {
-				//world.chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunkTerrain(x*CA::c_chunkSize,y*CA::c_chunkSize);
-                //CA::CAGI cagi;
-                //cagi.Init(x,y);
-                //world.lightMap[std::tuple<int, int>{x, y}] = cagi; 
-
-            }
-		}
-        for (int x = 0; x < CA::c_screenWidth; x++) {
-            //world.toBeUpdatedLine[x] = true;
-            //world.lastUpdated[x] = 0;
-        }
- 
-        //world.UpdateLighting(world.materials,player.cameraPosition,{1920,1080});
-               
-        for (int x = 0; x < world.chunksX; x++) {
-            for (int y = 0; y < world.chunksY; y++) {
-          //      world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks, world.materials,renderLight);
-            }
-        }
+        
     }
 	App() {
         SetTraceLogLevel(LOG_NONE); 
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 		InitWindow(1920, 1080, "a");
+        omp_set_num_threads(32);
         Init();   
-        //SetTargetFPS(60);
+
         map = new Physics::Map;
     }
     
 	void Run() {
         int frame = 0;
-		while (!WindowShouldClose()) {
-			BeginDrawing();
-			ClearBackground(SKYBLUE);
-            if (IsMouseButtonDown(2) && frame%10==0) {
-                Vector2 mousePos = GetMousePosition();
-                Vector2 worldPos = {
-                    (mousePos.x / player.cameraZoom) +  player.cameraPosition.x,
-                    (mousePos.y /  player.cameraZoom) +  player.cameraPosition.y
-                };
-                
-                Physics::RigidBody rigidBody;
-                rigidBody.pos = worldPos;
-                rigidBody.Init(16,16);
-                for (int x = 0; x < 16; x++) {
-                    for (int y = 0; y < 16; y++) {
-                        
-                        if (Vector2Distance({(float)x,(float)y},{8,8})<6) {
-                            ImageDrawPixel(&rigidBody.image,x,y,WHITE);
-
-                        }
-
-                    }
-                }
-                rigidBody.Gen(map);
-                bodies.push_back(rigidBody);
-               // map->balls.push_back({ worldPos.x,worldPos.y, (int)map->balls.size(), 
-             //                      0, 0, Physics::colors[GetRandomValue(0, 4)], false, false, (float)GetRandomValue(5, 12) });
-            }    
-            DrawRectangleLines(
-                -player.cameraPosition.x * player.cameraZoom,
-                -player.cameraPosition.y *  player.cameraZoom,
-                CA::c_screenWidth *  player.cameraZoom,
-                CA::c_screenHeight *  player.cameraZoom,
-                WHITE
-            );
-            //world.Draw(player.cameraPosition,player.cameraZoom);
-            world.UpdatePhysics(world.materials,player.cameraPosition,{(float)GetScreenWidth(),(float)GetScreenHeight()});
-                        
-            std::cout<<"After physics \n";
+        
+        std::chrono::high_resolution_clock::time_point frameStart, frameEnd;
+        std::chrono::high_resolution_clock::time_point physicsStart, physicsEnd;
+        std::chrono::high_resolution_clock::time_point chunkGenStart, chunkGenEnd;
+        std::chrono::high_resolution_clock::time_point lightUpdateStart, lightUpdateEnd;
+        std::chrono::high_resolution_clock::time_point drawStart, drawEnd;
+        
+        while (!WindowShouldClose()) {
+            frameStart = std::chrono::high_resolution_clock::now();
+            
+            int generated = 0;
+            
+            BeginDrawing();
+            ClearBackground(SKYBLUE);
+            
+            physicsStart = std::chrono::high_resolution_clock::now();
+            world.UpdatePhysics(world.materials, player.cameraPosition, {(float)GetScreenWidth(), (float)GetScreenHeight()});
+            physicsEnd = std::chrono::high_resolution_clock::now();
+            auto physicsDuration = std::chrono::duration_cast<std::chrono::microseconds>(physicsEnd - physicsStart).count();
+            
             int beginX = (int)(player.cameraPosition.x / CA::c_chunkSize);
             int endX = (int)((player.cameraPosition.x + (GetScreenWidth() / player.cameraZoom)) / CA::c_chunkSize) + 1;
             int beginY = (int)(player.cameraPosition.y / CA::c_chunkSize);
@@ -242,10 +205,9 @@ public:
             endX = std::min(world.chunksX, endX);
             beginY = std::max(0, beginY);
             endY = std::min(world.chunksY, endY);
-                
+            /*
             const int subSteps = 8; 
             for (int s = 0; s < subSteps; s++) {
-                
                 for (auto& ball : map->balls) {
                     if (!ball.held) {
                         ball.y_vel += 0.5f / subSteps; 
@@ -253,36 +215,46 @@ public:
                         ball.y += ball.y_vel / subSteps;
                     }
                 }
-
                 M_RecalculateGrid(map);
-
                 for (int i = 0; i < (int)map->balls.size(); i++) {
                     En_CollisionBall(i, map, &world);
                 }
-                
             }
+            */
+            chunkGenStart = std::chrono::high_resolution_clock::now();
             for (int x = beginX; x < endX; x++) {
                 for (int y = beginY; y < endY; y++) {
                     if (!world.lightMap[{x,y}].generated) {
                         CA::CAGI cagi;
                         cagi.Init(x,y);
-                        world.lightMap[std::tuple<int, int>{x, y}] = cagi; 
+                        world.lightMap[{x, y}] = cagi; 
                         world.lightMap[{x,y}].generated = true;
-                    }
-                    if (!world.chunkMap[{x,y}].generated) {
-                        world.chunkMap[std::tuple<int, int>{x, y}] = GenCleanChunkTerrain(x*CA::c_chunkSize,y*CA::c_chunkSize);
+                        
+                        world.chunkMap[{x, y}] = GenCleanChunkTerrain(x*CA::c_chunkSize,y*CA::c_chunkSize);
                         world.chunkMap[{x,y}].generated = true;
+                        world.chunkMap[{x, y}].toBeUpdated = true;
+                        world.chunkMap[{x, y}].lastUpdate = 0;
+                        for (int d = 0; d < CA::c_chunkSize; d++) {
+                            world.toBeUpdatedLine[x*CA::c_chunkSize+d] = true;
+                        }
+                        frame = 3;
                     }
+                    
+                }
+            }
+            for (int x = beginX; x < endX; x++) {
+                for (int y = beginY; y < endY; y++) {
                     world.lightMap[{x,y}].Draw(x,y,player.cameraPosition,player.cameraZoom);
                 }
             }
-            std::cout<<"After the draw loop\n";
+            chunkGenEnd = std::chrono::high_resolution_clock::now();
+            auto chunkGenDuration = std::chrono::duration_cast<std::chrono::microseconds>(chunkGenEnd - chunkGenStart).count();
             
-            if (frame%3==0)  {
+            lightUpdateStart = std::chrono::high_resolution_clock::now();
+            if (frame%5==0) {
                 bool hasChunks = false;
                 for (int x = beginX; x < endX; x++) {
-                    for (int y = 0; y < world.chunksY; y++) {
-                        
+                    for (int y = beginY; y < endY; y++) {
                         if (world.chunkMap[{x,y}].generated && world.lightMap[{x,y}].generated) {
                             hasChunks = true;
                             bool update = false;
@@ -292,18 +264,28 @@ public:
                                     break;
                                 }
                             }
+                            if (world.chunkMap[{x,y}].toBeUpdated) update = true;
                             if (world.chunkMap[{x,y}].lastUpdate==0) update =true;
                             if (update) world.lightMap[{x,y}].Update(world.chunkMap[{x,y}].blocks,world.materials,renderLight);
-                            
                         }
                     }
                 }
                 world.UpdateLighting(world.materials,player.cameraPosition,{(float)GetScreenWidth(),(float)GetScreenHeight()});
-            
             }
-            std::cout<<"After lighting \n";
-     //       world.CalculateTotalDeltaDifference();
-            for (auto& b : map->balls){          
+            lightUpdateEnd = std::chrono::high_resolution_clock::now();
+            auto lightUpdateDuration = std::chrono::duration_cast<std::chrono::microseconds>(lightUpdateEnd - lightUpdateStart).count();
+            
+            drawStart = std::chrono::high_resolution_clock::now();
+            
+            DrawRectangleLines(
+                -player.cameraPosition.x * player.cameraZoom,
+                -player.cameraPosition.y * player.cameraZoom,
+                CA::c_screenWidth * player.cameraZoom,
+                CA::c_screenHeight * player.cameraZoom,
+                WHITE
+            );
+            
+            for (auto& b : map->balls) {          
                 Rectangle destRect = {
                     (b.x - player.cameraPosition.x) * player.cameraZoom,
                     (b.y - player.cameraPosition.y) * player.cameraZoom,
@@ -311,25 +293,66 @@ public:
                     b.radius * player.cameraZoom
                 }; 
                 DrawCircle(destRect.x, destRect.y, destRect.width, b.color); 
-            } 
-            std::cout<<"After balls \n";
+            }
+            
+            for (auto &t : bodies) {
+                // t.UpdateRigidBody(map);
+                // t.Draw(player.cameraPosition,player.cameraZoom);
+            }
+            
+            player.Control();
+            player.Editor(&world);
+            
             if (IsKeyDown(KEY_G)) {
                 world.SaveWorld();
             }
             if (IsKeyDown(KEY_H)) {
                 world.LoadWorld();
             }
-            for (auto &t : bodies) {
-              //  t.UpdateRigidBody(map);
-                //t.Draw(player.cameraPosition,player.cameraZoom);
-            }
-            player.Control();
             
-            player.Editor(&world);
             DrawFPS(0, 0);
-			EndDrawing();
+            drawEnd = std::chrono::high_resolution_clock::now();
+            auto drawDuration = std::chrono::duration_cast<std::chrono::microseconds>(drawEnd - drawStart).count();
+            
+            EndDrawing();
+            
+            frameEnd = std::chrono::high_resolution_clock::now();
+            auto frameDuration = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - frameStart).count();
+            
+            if (frame % 60 == 0) {
+                std::cout << "=== Frame Timing (microseconds) ===" << std::endl;
+                std::cout << "Total Frame: " << frameDuration << " μs (" << (1000000.0f / frameDuration) << " FPS)" << std::endl;
+                std::cout << "  Physics: " << physicsDuration << " μs (" << (physicsDuration * 100.0f / frameDuration) << "%)" << std::endl;
+                std::cout << "  Chunk Gen: " << chunkGenDuration << " μs (" << (chunkGenDuration * 100.0f / frameDuration) << "%)" << std::endl;
+                std::cout << "  Light Update: " << lightUpdateDuration << " μs (" << (lightUpdateDuration * 100.0f / frameDuration) << "%)" << std::endl;
+                std::cout << "  Drawing: " << drawDuration << " μs (" << (drawDuration * 100.0f / frameDuration) << "%)" << std::endl;
+                std::cout << "  Other: " << (frameDuration - physicsDuration - chunkGenDuration - lightUpdateDuration - drawDuration) << " μs" << std::endl;
+                std::cout << "====================================" << std::endl;
+            }
+            
             frame++;
-		}
+            
+            if (IsMouseButtonDown(2) && frame%10==0) {
+                Vector2 mousePos = GetMousePosition();
+                Vector2 worldPos = {
+                    (mousePos.x / player.cameraZoom) + player.cameraPosition.x,
+                    (mousePos.y / player.cameraZoom) + player.cameraPosition.y
+                };
+                
+                Physics::RigidBody rigidBody;
+                rigidBody.pos = worldPos;
+                rigidBody.Init(16,16);
+                for (int x = 0; x < 16; x++) {
+                    for (int y = 0; y < 16; y++) {
+                        if (Vector2Distance({(float)x,(float)y},{8,8})<6) {
+                            ImageDrawPixel(&rigidBody.image,x,y,WHITE);
+                        }
+                    }
+                }
+                rigidBody.Gen(map);
+                bodies.push_back(rigidBody);
+            }
+        }
 	}
 };
 

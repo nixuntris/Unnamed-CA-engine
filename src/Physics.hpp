@@ -6,6 +6,7 @@
 #include <cmath>
 #include "Chunk.hpp"
 #include <algorithm>
+#include <omp.h>
 namespace Physics {
     
     
@@ -15,8 +16,8 @@ namespace Physics {
         { 80, 200, 230, 255 }, { 100, 220, 240, 255 }, { 140, 240, 250, 255 },
         { 180, 250, 255, 255 }
     };
-    const int WORLD_WIDTH = 1920;
-    const int WORLD_HEIGHT = 1080;
+    const int WORLD_WIDTH = 1920*4;
+    const int WORLD_HEIGHT = 1080*4;
     const int chunkSize = 40; 
     const int MAX_BALL_COUNT_PER_CHUNK = 128;
     const int GRID_W = (WORLD_WIDTH / chunkSize) + 1;
