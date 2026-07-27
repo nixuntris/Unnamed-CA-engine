@@ -533,8 +533,13 @@ namespace CA {
         }
         void loadMaterials(const std::string& filename) {
             std::ifstream file(filename);
-            if (!file.is_open()) return;
+            if (!file.is_open()){
+                std::cerr<<"Failed to load materials \n";
+                return;
+            } 
 
+
+            std::cout << "Loading materials from: " << filename << std::endl;
             std::string line;
             Tile* current = nullptr;
 
@@ -733,17 +738,9 @@ namespace CA {
         }
         inline void UpdateYLine(int x, std::vector<Tile> &tiles) {
 
-            for (int y = 0; y < lastUpdated[x]; y++) {
-              //  if (lightMap[{x/c_chunkSize,y/c_chunkSize}].generated) {
-                    //auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
-                
-                    //chunk.r[x%c_chunkSize][y%c_chunkSize] = 30;
-                    //chunk.g[x%c_chunkSize][y%c_chunkSize] = 30;
-               //     //chunk.b[x%c_chunkSize][y%c_chunkSize] = 30;
-                //}
-            }
             
             float lightStrength = 1;
+            int endedY = 0;
             for (int y = 0; y < chunksY*c_chunkSize; y++) {
                 auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
                 if (!chunkMap[{x/c_chunkSize,y/c_chunkSize}].containsData) y+= c_chunkSize;
@@ -760,6 +757,18 @@ namespace CA {
                     }
                     lastUpdated[x] = y;
                     if (lightStrength<0.1) break;
+                }
+                endedY= y;
+            }
+            
+            for (int y = endedY; y < endedY+300 && y<c_screenHeight; y++) {
+                
+                if (lightMap[{x/c_chunkSize,y/c_chunkSize}].generated) {
+                    auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
+                
+                    chunk.r[x%c_chunkSize][y%c_chunkSize] = 30;
+                    chunk.g[x%c_chunkSize][y%c_chunkSize] = 30;
+                    chunk.b[x%c_chunkSize][y%c_chunkSize] = 30;
                 }
             }
         }

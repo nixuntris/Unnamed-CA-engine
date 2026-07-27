@@ -20,7 +20,7 @@ struct Player {
     int choosen = 0;
     void Init() {
         cameraPosition = {0,0};
-        cameraZoom = 1;
+        cameraZoom = 2;
     }
     void Control() {
         
@@ -34,12 +34,12 @@ struct Player {
                 (mousePos.y / this->cameraZoom) + this->cameraPosition.y
             };
             this->cameraZoom += wheel * 0.1f;
-            this->cameraZoom = Clamp(this->cameraZoom, 0.5f, 3.0f);
+            this->cameraZoom = Clamp(this->cameraZoom, 2, 5.0f);
             this->cameraPosition.x = worldPos.x - (mousePos.x / this->cameraZoom);
             this->cameraPosition.y = worldPos.y - (mousePos.y / this->cameraZoom);
         }
-        if (this->cameraZoom < 0.5f) this->cameraZoom = 0.5f;
-        if (this->cameraZoom > 3.0f) this->cameraZoom= 3.0f;
+        if (this->cameraZoom < 2.0f) this->cameraZoom = 2.0f;
+        if (this->cameraZoom > 5.0f) this->cameraZoom= 5.0f;
         if (IsKeyDown(KEY_A)) {
             cameraPosition.x -= 2/this->cameraZoom;
         }
@@ -318,7 +318,7 @@ public:
             
             frameEnd = std::chrono::high_resolution_clock::now();
             auto frameDuration = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - frameStart).count();
-            
+            std::cout<<player.cameraZoom<<"\n";
             if (frame % 60 == 0) {
                 std::cout << "=== Frame Timing (microseconds) ===" << std::endl;
                 std::cout << "Total Frame: " << frameDuration << " μs (" << (1000000.0f / frameDuration) << " FPS)" << std::endl;
