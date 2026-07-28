@@ -9,8 +9,8 @@
 namespace CA {
     const int c_chunkSize = 64;
     const int c_sleepTime = 30;
-    const int c_screenWidth = 1920*4;
-    const int c_screenHeight = 1080*4;
+    const int c_screenWidth = 1920;
+    const int c_screenHeight = 1080;
 
     struct Tile {
         std::string name;
