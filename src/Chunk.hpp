@@ -7,31 +7,44 @@
 #include <cmath>
 #include <cstring>
 namespace CA {
-    const int c_chunkSize = 64;
-    const int c_sleepTime = 30;
-    const int c_screenWidth = 1920;
-    const int c_screenHeight = 1080;
+    
+    const int c_chunkSize = 64; //Size of each chunk in cells 
+    const int c_sleepTime = 30; //Number of frames a chunk waits before going offline untill woken up by a neighbouring chunk
+    const int c_screenWidth = 1920; //World width
+    const int c_screenHeight = 1080; //World height. Both disconnected from what's in the rigid bodies file
 
+
+    
+    /**
+     * Tile - Defines the properties/behavior of a cell type.
+     * Uses a palette approach: each cell stores only a uint8_t type index,
+     * and the actual behavior is looked up from this Tile struct.
+     */
+
+   
     struct Tile {
-        std::string name;
-        int weight;
-        bool gas;
-        bool goesBothWays;
-        bool falls;
-        Color color;
-        int dissolves;
-        bool fluid;
-        int replaces;
-        int lifeTime;
-        int leaveBehind;
-        float lightAbsorb;
+        std::string name;        // Display name of the tile
+        int weight;              // Used for displacement (heavier sinks, lighter floats)
+        bool gas;                // If true, moves upward (like smoke)
+        bool goesBothWays;       // Unused, reserved for side-to-side movement
+        bool falls;              // If true, moves downward (like sand/gravel)
+        Color color;             // Color used when rendering
+        int dissolves;           // Tile type that dissolves this one (-1 = no dissolve)
+        bool fluid;              // If true, behaves like water (flows down and sideways)
+        int replaces;            // Unused, reserved for replacement behavior
+        int lifeTime;            // How many frames before the tile dies (-1 = infinite)
+        int leaveBehind;         // Tile type left behind when this tile dies
+        float lightAbsorb;       // How much light this tile absorbs (0.0 = transparent, 1.0 = opaque)
     };
     struct Cell {
-        uint8_t type;
-        uint8_t direction;
-        bool updated;
-        int lifeTime;
+        uint8_t type; //Index into the tile
+        uint8_t direction; //Used for fluids, 0 - right, 1 - left
+        bool updated; //Prevents updating the same cell multiple times per frame
+        int lifeTime; //Remaining life of this specific cell
     };
+    //Different buffers are for different cross chunk behaviours
+    //It allows to make interactions much easier, and isn't that expensive
+    
     struct Chunk {
         bool generated = false;
         Cell blocks[c_chunkSize][c_chunkSize];
@@ -54,6 +67,7 @@ namespace CA {
         bool containsData;
         int lastUpdate;
         bool updatedYLine[c_chunkSize];
+        //Debug functions for seeing the raw information, needs a proper init in a gen function
         void Draw(int x, int y, Vector2 cameraPosition, float zoom) {
             Rectangle sourceRect = {0, 0, texture.width, texture.height};
             Rectangle destRect = {
@@ -64,6 +78,30 @@ namespace CA {
             };
             DrawTexturePro(texture, sourceRect, destRect, Vector2{0, 0}, 0.0f, WHITE);
         }   
+        
+        void UpdateDisplayBuffer(std::vector<Tile> &tiles) {
+            containsData = false;
+            Color* pixels = (Color*)image.data;
+            for (int x = 0; x < c_chunkSize; x++) {
+                for (int y = 0; y < c_chunkSize; y++) {
+                    if (blocks[x][y].type != 0) {
+                        containsData = true;
+                    }
+                    if (blocks[x][y].type==0) {
+                        pixels[y * c_chunkSize + x] = SKYBLUE;
+                    }
+                    else if (blocks[x][y].type<tiles.size()) {
+                        
+                        Color color = tiles[blocks[x][y].type].color;
+                        pixels[y * c_chunkSize + x] = color;
+                        
+                    }
+                }
+            }
+            UpdateTexture(texture, image.data);
+            toBeUpdated = false;
+        }
+        //Calculates the difference between the previous frame, will be used for streaming data
         int CalculateTheDelta() {
             struct Delta {
                 uint8_t x;
@@ -91,28 +129,8 @@ namespace CA {
             }
             return r;
         }
-        void UpdateDisplayBuffer(std::vector<Tile> &tiles) {
-            containsData = false;
-            Color* pixels = (Color*)image.data;
-            for (int x = 0; x < c_chunkSize; x++) {
-                for (int y = 0; y < c_chunkSize; y++) {
-                    if (blocks[x][y].type != 0) {
-                        containsData = true;
-                    }
-                    if (blocks[x][y].type==0) {
-                        pixels[y * c_chunkSize + x] = SKYBLUE;
-                    }
-                    else if (blocks[x][y].type<tiles.size()) {
-                        
-                        Color color = tiles[blocks[x][y].type].color;
-                        pixels[y * c_chunkSize + x] = color;
-                        
-                    }
-                }
-            }
-            UpdateTexture(texture, image.data);
-            toBeUpdated = false;
-        }
+        //Move functions "move", it's meant to change it's position by +1 y for example, it handles both neighbours and itself
+        //It makes it easier to make new behaviours, and allows to simplify the code and ease of use
         inline bool MoveDown(int x, int y, std::vector<Tile> &tiles, bool moveByWeight=false) {
             if (y + 1 < c_chunkSize) {
                 if (blocks[x][y + 1].type == 0 && !blocks[x][y + 1].updated) {
@@ -275,6 +293,7 @@ namespace CA {
             }
             return false;
         }
+        
         bool SurroundedByDissolvingTiles(int x, int y, int dissolvingTile) {
             auto checkPosition = [&](int checkX, int checkY) -> bool {
                 if (checkX >= 0 && checkX < c_chunkSize && checkY >= 0 && checkY < c_chunkSize) {
@@ -644,10 +663,12 @@ namespace CA {
                                 }
                                 chunkMap[{x,y}].swapDown[cx].type = 0;
                             }
+                            //Eeset neighbor data copy update flags
                             chunkMap[{x,y}].bottomChunkDataCopy[cx].updated = false;
                             chunkMap[{x,y}].topChunkDataCopy[cx].updated = false;
                             chunkMap[{x,y}].leftChunkDataCopy[cx].updated = false;
                             chunkMap[{x,y}].rightChunkDataCopy[cx].updated = false;
+                            //Copy data from neighbors
                             if (y+1<chunksY) chunkMap[{x,y}].bottomChunkDataCopy[cx] = chunkMap[{x,y+1}].blocks[cx][0];
                             else chunkMap[{x,y}].bottomChunkDataCopy[cx].type = 255;
                             if (y-1>=0) chunkMap[{x,y}].topChunkDataCopy[cx] = chunkMap[{x,y-1}].blocks[cx][c_chunkSize-1];
@@ -656,6 +677,7 @@ namespace CA {
                             else chunkMap[{x,y}].leftChunkDataCopy[cx].type = 255;
                             if (x+1<chunksX) chunkMap[{x,y}].rightChunkDataCopy[cx] = chunkMap[{x+1,y}].blocks[0][cx];
                             else chunkMap[{x,y}].rightChunkDataCopy[cx].type = 255;
+                            //Proces cross chunk movement
                             if (chunkMap[{x,y}].moveDown[cx].type != 0 && y+1<chunksY) {
                                 if (chunkMap[{x,y+1}].blocks[cx][0].type == 0) {
                                     chunkMap[{x,y+1}].blocks[cx][0] = chunkMap[{x,y}].moveDown[cx];
@@ -708,6 +730,7 @@ namespace CA {
                     }
                 }
             }
+            //Clear movement for chunks that just updated
              #pragma omp parallel for collapse(2)
             
             for (int x = 0; x < chunksX; x++) {
@@ -736,6 +759,9 @@ namespace CA {
             }
             std::cout<<dif<<"\n";
         }
+        /**
+         * Updates lighting for all visible columns. Update checks are called by behavior functions
+         */
         inline void UpdateYLine(int x, std::vector<Tile> &tiles) {
 
             

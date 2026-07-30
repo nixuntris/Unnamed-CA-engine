@@ -60,7 +60,7 @@ fluid = false
 gas = false
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 50
+lightAbsorb = 97
 
 wood:
 falls = false
@@ -73,7 +73,7 @@ dissolve = None
 gas = false
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 80
+lightAbsorb = 97
 
 fire:
 falls = true
@@ -87,7 +87,7 @@ replace = 5
 gas = false
 leaveBehind = 7
 lifeTime = 500
-lightAbsorb = 20
+lightAbsorb = 97
 
 smoke:
 weight = 0
@@ -100,7 +100,7 @@ fluid = false
 gas = true
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 100
+lightAbsorb = 97
 
 dirt:
 falls = false
@@ -152,7 +152,7 @@ color = (45,150,45,255)
 dissolve = None
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 70
+lightAbsorb = 97
 
 log:
 falls = false
@@ -178,7 +178,7 @@ color = (110,110,110,255)
 dissolve = None
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 70
+lightAbsorb = 97
 
 clay:
 falls = false
@@ -204,7 +204,7 @@ color = (245,245,250,255)
 dissolve = None
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 30
+lightAbsorb = 97
 
 ice:
 falls = false
@@ -217,7 +217,7 @@ color = (170,220,255,255)
 dissolve = None
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 25
+lightAbsorb = 97
 
 coal:
 falls = false
@@ -269,7 +269,7 @@ color = (255,80,0,255)
 dissolve = 3
 leaveBehind = 7
 lifeTime = -1
-lightAbsorb = 15
+lightAbsorb = 97
 
 glass:
 falls = false
@@ -282,7 +282,7 @@ color = (180,230,255,160)
 dissolve = None
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 5
+lightAbsorb = 100
 
 brick:
 falls = false
@@ -295,7 +295,7 @@ color = (170,70,50,255)
 dissolve = None
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 90
+lightAbsorb = 99
 
 bedrock:
 falls = false

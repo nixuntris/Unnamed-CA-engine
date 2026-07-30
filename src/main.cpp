@@ -19,13 +19,13 @@ struct Player {
     float cameraZoom;
 	int editSize = 15;
     int choosen = 0;
-
+    float yVelocity = 0;
     void Init() {
         playerPosition = {0,0};
         cameraPosition = {0,0};
         cameraZoom = 2;
     }
-    void Control() {
+    void Control(CA::World *world) {
         
         float wheel = GetMouseWheelMove();
         this->cameraZoom += wheel * 0.1f;
@@ -49,13 +49,21 @@ struct Player {
         if (IsKeyDown(KEY_D)) {
             cameraPosition.x += 2/this->cameraZoom;
         }
-        if (IsKeyDown(KEY_W)) {
-            cameraPosition.y -= 2/this->cameraZoom;
-        }
-        if (IsKeyDown(KEY_S)) {
-            cameraPosition.y += 2/this->cameraZoom;
-        }
         
+        for (int x = 0; x < 16; x++) {
+            int cx = playerPosition.x+x;
+            int cy = playerPosition.y+16;
+            if (world->chunkMap[{cx/CA::c_chunkSize,cy/CA::c_chunkSize}].generated) {
+                if (world->chunkMap[{cx/CA::c_chunkSize,cy/CA::c_chunkSize}].blocks[cx%CA::c_chunkSize][cy%CA::c_chunkSize].type!=0) {
+                    cameraPosition.y += 1;
+                }
+            }
+            else {
+                cameraPosition.y += 1;
+            }
+            
+
+        }
     }
     void Draw() {
         float w  = GetScreenWidth();
@@ -205,7 +213,6 @@ public:
         while (!WindowShouldClose()) {
             frameStart = std::chrono::high_resolution_clock::now();
             
-            int generated = 0;
             
             BeginDrawing();
             ClearBackground(SKYBLUE);
@@ -260,11 +267,9 @@ public:
             
             lightUpdateStart = std::chrono::high_resolution_clock::now();
             if (frame%3==0) {
-                bool hasChunks = false;
                 for (int x = beginX; x < endX; x++) {
                     for (int y = beginY; y < endY; y++) {
                         if (world.chunkMap[{x,y}].generated && world.lightMap[{x,y}].generated) {
-                            hasChunks = true;
                             bool update = false;
                             for (int cx = 0; cx < CA::c_chunkSize; cx++) {
                                 if (world.toBeUpdatedLine[cx+x*CA::c_chunkSize]) {
@@ -293,7 +298,7 @@ public:
                 WHITE
             );
             
-            player.Control();
+            player.Control(&world);
             player.Editor(&world);
             
             if (IsKeyDown(KEY_G)) {
@@ -312,7 +317,6 @@ public:
             
             frameEnd = std::chrono::high_resolution_clock::now();
             auto frameDuration = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - frameStart).count();
-            std::cout<<player.cameraZoom<<"\n";
             if (frame % 60 == 0) {
                 std::cout << "=== Frame Timing (microseconds) ===" << std::endl;
                 std::cout << "Total Frame: " << frameDuration << " μs (" << (1000000.0f / frameDuration) << " FPS)" << std::endl;
