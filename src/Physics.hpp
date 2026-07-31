@@ -85,6 +85,62 @@ namespace Physics {
         }
     };
 
+    ShapeGrid CreateDiamond(float pixelSize = 5.0f) {
+        ShapeGrid shape;
+        shape.width = 5;
+        shape.height = 5;
+        shape.pixelSize = pixelSize;
+        shape.rotation = 0;
+        shape.angularVelocity = 0;
+        shape.mass = 1.0f;
+        shape.restitution = 0.8f;
+        memset(shape.grid, 0, sizeof(shape.grid));
+        bool triangle[5][5] = {
+            {0,0,1,0,0},
+            {0,1,1,1,0},
+            {1,1,1,1,1},
+            {0,1,1,1,0},
+            {0,0,1,0,0}
+        };
+        
+        for (int y = 0; y < 5; y++) {
+            for (int x = 0; x < 5; x++) {
+                shape.grid[y][x] = triangle[y][x];
+            }
+        }
+        
+        shape.CalculatePixels();
+        return shape;
+    }
+
+    ShapeGrid CreateSquare(float pixelSize = 5.0f) {
+        ShapeGrid shape;
+        shape.width = 5;
+        shape.height = 5;
+        shape.pixelSize = pixelSize;
+        shape.rotation = 0;
+        shape.angularVelocity = 0;
+        shape.mass = 1.0f;
+        shape.restitution = 0.8f;
+        memset(shape.grid, 0, sizeof(shape.grid));
+        bool triangle[5][5] = {
+            {1,1,1,1,1},
+            {1,1,1,1,1},
+            {1,1,1,1,1},
+            {1,1,1,1,1},
+            {1,1,1,1,1}
+        };
+        
+        for (int y = 0; y < 5; y++) {
+            for (int x = 0; x < 5; x++) {
+                shape.grid[y][x] = triangle[y][x];
+            }
+        }
+        
+        shape.CalculatePixels();
+        return shape;
+    }
+
     ShapeGrid CreateTriangle(float pixelSize = 5.0f) {
         ShapeGrid shape;
         shape.width = 5;
@@ -143,8 +199,7 @@ namespace Physics {
         int cx = (int)(ball.x / chunkSize);
         int cy = (int)(ball.y / chunkSize);
         
-        struct WorldPixel { float x, y; };
-        WorldPixel ballPixels[MAX_PIXELS];
+        Vector2 ballPixels[MAX_PIXELS];
         for (int p = 0; p < ball.pixelCount; p++) {
             float cosA = cosf(ball.rotation);
             float sinA = sinf(ball.rotation);
@@ -168,7 +223,7 @@ namespace Physics {
                     float dist = sqrtf(dx*dx + dy*dy);
                     if (dist > ball.collisionRadius + other.collisionRadius) continue;
                     
-                    WorldPixel otherPixels[MAX_PIXELS];
+                    Vector2 otherPixels[MAX_PIXELS];
                     for (int p = 0; p < other.pixelCount; p++) {
                         float cosA = cosf(other.rotation);
                         float sinA = sinf(other.rotation);

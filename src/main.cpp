@@ -226,11 +226,14 @@ public:
                 { 80, 200, 230, 255 }, { 100, 220, 240, 255 }, { 140, 240, 250, 255 },
                 { 180, 250, 255, 255 }
             };
-            if (IsMouseButtonDown(1) && frame%40==0) {
+            if (IsMouseButtonDown(2) && frame%10==0) {
                             
                 Physics::ShapeGrid newShape;
                 float pixelSize = (float)GetRandomValue(3, 6);
-                newShape = Physics::CreateTriangle(pixelSize);
+                int val = GetRandomValue(0,2);
+                if (val==0) newShape = Physics::CreateTriangle(pixelSize);
+                if (val==1) newShape = Physics::CreateDiamond(pixelSize);
+                if (val==2) newShape = Physics::CreateSquare(pixelSize);
                             
                 newShape.x = (GetMouseX() / player.cameraZoom) + player.cameraPosition.x;
                 newShape.y = (GetMouseY() / player.cameraZoom) + player.cameraPosition.y;
@@ -377,25 +380,18 @@ public:
                     float screenY = (worldY - player.cameraPosition.y) * player.cameraZoom;
                     
                     float pixelSize = b.pixelSize * player.cameraZoom;
-                    
+                    Color color = {float(b.color.r)/255.0f* world.lightMap[{worldX/CA::c_chunkSize,worldY/CA::c_chunkSize}].r[(int)worldX%CA::c_chunkSize][(int)worldY%CA::c_chunkSize],
+                    float(b.color.g)/255.0f*world.lightMap[{worldX/CA::c_chunkSize,worldY/CA::c_chunkSize}].g[(int)worldX%CA::c_chunkSize][(int)worldY%CA::c_chunkSize],
+                    float(b.color.b)/255.0f*world.lightMap[{worldX/CA::c_chunkSize,worldY/CA::c_chunkSize}].b[(int)worldX%CA::c_chunkSize][(int)worldY%CA::c_chunkSize],255};
                     DrawRectangle(
                         screenX - pixelSize/2,
                         screenY - pixelSize/2,
                         pixelSize + 1, 
                         pixelSize + 1,
-                        b.color
+                        color
                     );
                 }
                 
-                // Optional: Draw rotation indicator (line from center to edge)
-                float indicatorLength = b.collisionRadius * 0.7f;
-                float endX = b.x + cosf(b.rotation) * indicatorLength;
-                float endY = b.y + sinf(b.rotation) * indicatorLength;
-                float screenCenterX = (b.x - player.cameraPosition.x) * player.cameraZoom;
-                float screenCenterY = (b.y - player.cameraPosition.y) * player.cameraZoom;
-                float screenEndX = (endX - player.cameraPosition.x) * player.cameraZoom;
-                float screenEndY = (endY - player.cameraPosition.y) * player.cameraZoom;
-                DrawLine(screenCenterX, screenCenterY, screenEndX, screenEndY, WHITE);
             }
             player.Draw();
 
