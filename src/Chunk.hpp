@@ -472,9 +472,9 @@ namespace CA {
             texture = LoadTextureFromImage(image);
             for (int x = 0; x < c_chunkSize; x++) {
                 for (int y = 0; y < c_chunkSize; y++) {
-                    r[x][y] = 0;
-                    g[x][y] = 0;
-                    b[x][y] = 0;
+                    r[x][y] = 30;
+                    g[x][y] = 30;
+                    b[x][y] = 30;
                     hashValues[x][y] = hash(x+cx*c_chunkSize,y+cy*c_chunkSize);
                 }
             }

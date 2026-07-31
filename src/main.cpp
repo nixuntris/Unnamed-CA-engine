@@ -48,36 +48,40 @@ struct Player {
         }
         if (IsKeyDown(KEY_D)) {
             cameraPosition.x += 2/this->cameraZoom;
+        }if (IsKeyDown(KEY_W)) {
+            cameraPosition.y -= 2/this->cameraZoom;
         }
-        
-        for (int x = 0; x < 16; x++) {
-            int cx = playerPosition.x+x;
-            int cy = playerPosition.y+16;
-            if (world->chunkMap[{cx/CA::c_chunkSize,cy/CA::c_chunkSize}].generated) {
-                if (world->chunkMap[{cx/CA::c_chunkSize,cy/CA::c_chunkSize}].blocks[cx%CA::c_chunkSize][cy%CA::c_chunkSize].type!=0) {
-                    cameraPosition.y += 1;
-                }
-            }
-            else {
-                cameraPosition.y += 1;
-            }
-            
+        if (IsKeyDown(KEY_S)) {
+            cameraPosition.y += 2/this->cameraZoom;
+        }
+        float w  = GetScreenWidth();
+        float h  = GetScreenHeight();
+        playerPosition = {cameraPosition.x + w/2, cameraPosition.y + h/2};
+        for (int y = 0; y < 4; y++) {
 
+            for (int x = 0; x < 32; x++) {
+                int cx = playerPosition.x+x-16;
+                int cy = playerPosition.y+16+y;
+                if (world->chunkMap[{cx/CA::c_chunkSize,cy/CA::c_chunkSize}].generated) {
+                    if (world->chunkMap[{cx/CA::c_chunkSize,cy/CA::c_chunkSize}].blocks[cx%CA::c_chunkSize][cy%CA::c_chunkSize].type!=0) {
+                 //       std::cout<<"collided on down \n";
+                    }
+                }
+             //   DrawPixel(cx-cameraPosition.x,cy-cameraPosition.y,BLUE);
+
+            }
         }
     }
     void Draw() {
-        float w  = GetScreenWidth();
-        float h  = GetScreenHeight();
-        playerPosition = {cameraPosition.x+w/2,cameraPosition.y+h/2};        
         float playerSize = 16 * cameraZoom; 
         
-        DrawRectangle(
-            (w/2) - (playerSize/2), 
-            (h/2) - (playerSize/2), 
-            playerSize,           
-            playerSize,
-            RED
-        );
+        //DrawRectangle(
+     //       (playerPosition.x-cameraPosition.x)*cameraZoom, 
+      // //    (playerPosition.y-cameraPosition.y)*cameraZoom, 
+      //      playerSize,           
+      //      playerSize,
+      //      RED
+      //  );
     }
     void Editor(CA::World *world) {
         bool hover = false;
@@ -180,6 +184,7 @@ struct Player {
 
 class App {
     CA::World world;
+    Physics::Map* map;
     Player player;
     int targetFrames = 120;
     int simulationFrames = 60;
@@ -189,7 +194,7 @@ public:
     void Init() {
         
         world.loadMaterials("data/tile_set.txt");
-        
+        map = new Physics::Map;
     }
 	App() {
         SetTraceLogLevel(LOG_NONE); 
@@ -212,14 +217,58 @@ public:
         
         while (!WindowShouldClose()) {
             frameStart = std::chrono::high_resolution_clock::now();
-            
-            
+                
+                
+                                
+            const Color colors[10] = {
+                { 10, 30, 80, 255 }, { 15, 50, 120, 255 }, { 20, 80, 160, 255 },
+                { 30, 110, 190, 255 }, { 40, 140, 210, 255 }, { 60, 170, 220, 255 },
+                { 80, 200, 230, 255 }, { 100, 220, 240, 255 }, { 140, 240, 250, 255 },
+                { 180, 250, 255, 255 }
+            };
+            if (IsMouseButtonDown(1) && frame%40==0) {
+                            
+                Physics::ShapeGrid newShape;
+                float pixelSize = (float)GetRandomValue(3, 6);
+                newShape = Physics::CreateTriangle(pixelSize);
+                            
+                newShape.x = (GetMouseX() / player.cameraZoom) + player.cameraPosition.x;
+                newShape.y = (GetMouseY() / player.cameraZoom) + player.cameraPosition.y;
+                newShape.id = (int)map->balls.size();
+                newShape.color = colors[GetRandomValue(0, 4)];
+                newShape.x_vel = (float)GetRandomValue(-3, 3);
+                newShape.y_vel = (float)GetRandomValue(-8, -2);
+                newShape.held = false;
+                newShape.ownedByObject = false;
+                newShape.mass = newShape.pixelCount * 0.1f;
+                
+                map->balls.push_back(newShape);
+            }
             BeginDrawing();
             ClearBackground(SKYBLUE);
-            
             physicsStart = std::chrono::high_resolution_clock::now();
             if (frame%stepChange==0) {
                 world.UpdatePhysics(world.materials, player.cameraPosition, {(float)GetScreenWidth(), (float)GetScreenHeight()});
+                    
+                const int subSteps = 4; 
+                for (int s = 0; s < subSteps; s++) {
+                    
+                    for (auto& ball : map->balls) {
+                        if (!ball.held) {
+                            ball.y_vel += 0.5f / subSteps; 
+                            ball.x += ball.x_vel / subSteps;
+                            ball.y += ball.y_vel / subSteps;
+                            ball.rotation += ball.angularVelocity / subSteps;
+                            
+                        }
+                    }
+
+                    M_RecalculateGrid(map);
+                    for (int i = 0; i < (int)map->balls.size(); i++) {
+                        map->balls[i].angularVelocity *= 0.98;
+                        En_CollisionBall(i, map, &world);
+                    }
+                }
             }
             physicsEnd = std::chrono::high_resolution_clock::now();
             auto physicsDuration = std::chrono::duration_cast<std::chrono::microseconds>(physicsEnd - physicsStart).count();
@@ -312,7 +361,44 @@ public:
             DrawFPS(0, 0);
             drawEnd = std::chrono::high_resolution_clock::now();
             auto drawDuration = std::chrono::duration_cast<std::chrono::microseconds>(drawEnd - drawStart).count();
+            for (auto& b : map->balls) {
+                for (int i = 0; i < b.pixelCount; i++) {
+                    float cosA = cosf(b.rotation);
+                    float sinA = sinf(b.rotation);
+                    float localX = b.pixelPositions[i][0];
+                    float localY = b.pixelPositions[i][1];
+                    
+                    float rotatedX = localX * cosA - localY * sinA;
+                    float rotatedY = localX * sinA + localY * cosA;
+                    
+                    float worldX = b.x + rotatedX;
+                    float worldY = b.y + rotatedY;
+                    float screenX = (worldX - player.cameraPosition.x) * player.cameraZoom;
+                    float screenY = (worldY - player.cameraPosition.y) * player.cameraZoom;
+                    
+                    float pixelSize = b.pixelSize * player.cameraZoom;
+                    
+                    DrawRectangle(
+                        screenX - pixelSize/2,
+                        screenY - pixelSize/2,
+                        pixelSize + 1, 
+                        pixelSize + 1,
+                        b.color
+                    );
+                }
+                
+                // Optional: Draw rotation indicator (line from center to edge)
+                float indicatorLength = b.collisionRadius * 0.7f;
+                float endX = b.x + cosf(b.rotation) * indicatorLength;
+                float endY = b.y + sinf(b.rotation) * indicatorLength;
+                float screenCenterX = (b.x - player.cameraPosition.x) * player.cameraZoom;
+                float screenCenterY = (b.y - player.cameraPosition.y) * player.cameraZoom;
+                float screenEndX = (endX - player.cameraPosition.x) * player.cameraZoom;
+                float screenEndY = (endY - player.cameraPosition.y) * player.cameraZoom;
+                DrawLine(screenCenterX, screenCenterY, screenEndX, screenEndY, WHITE);
+            }
             player.Draw();
+
             EndDrawing();
             
             frameEnd = std::chrono::high_resolution_clock::now();
