@@ -18,7 +18,7 @@ namespace Physics {
     };
     const int WORLD_WIDTH = 1920*4;
     const int WORLD_HEIGHT = 1080*4;
-    const int chunkSize = 40; 
+    const int chunkSize = 64; 
     const int MAX_BALL_COUNT_PER_CHUNK = 128;
     const int GRID_W = (WORLD_WIDTH / chunkSize) + 1;
     const int GRID_H = (WORLD_HEIGHT / chunkSize) + 1;
@@ -27,6 +27,7 @@ namespace Physics {
     const int MAX_PIXELS = 64;
     
     struct ShapeGrid {
+        Rectangle AABB;
         float x, y;
         int id;
         float x_vel, y_vel;
@@ -36,20 +37,21 @@ namespace Physics {
         bool held;
         bool ownedByObject;
         float radius;         
-        bool grid[MAX_SHAPE_SIZE][MAX_SHAPE_SIZE];
+        int grid[MAX_SHAPE_SIZE][MAX_SHAPE_SIZE];
         int pixelCount;
         float pivotX;
         float pivotY;
         int width;
         int height;
         float pixelPositions[MAX_PIXELS][2];
+        float gridPositions[MAX_PIXELS][2];
         float collisionRadius;
-        float pixelSize;
+        float pixelSize = 1;
         float mass;
         float restitution;
         float momentOfInertia;  
-        
-        void CalculatePixels() {
+        Texture texture;
+        void CalculatePixels(std::vector<CA::Tile> &tiles) {
             pixelCount = 0;
             float maxDist = 0;
             pivotX = width * pixelSize / 2.0f;
@@ -57,11 +59,16 @@ namespace Physics {
             
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    if (grid[y][x]) { 
+                    if (grid[x][y]!=0) { 
                         float px = x * pixelSize + pixelSize/2 - pivotX;
                         float py = y * pixelSize + pixelSize/2 - pivotY;
+                     //   if (grid[x-1][y]!=0 && x-1>=0 && grid[x+1][y]!=0 && x+1<width && grid[x][y-1]!=0 && y-1>=0 && grid[x][y+1]!=0 && y+1<height) continue;
+                        
                         pixelPositions[pixelCount][0] = px;
                         pixelPositions[pixelCount][1] = py;
+                        gridPositions[pixelCount][0] = x;
+                        gridPositions[pixelCount][1] = y;
+                        
                         pixelCount++;
                         float dist = sqrt(px*px + py*py);
                         if (dist > maxDist) maxDist = dist;
@@ -70,7 +77,16 @@ namespace Physics {
             }
             collisionRadius = maxDist + pixelSize;
             radius = collisionRadius;
+            Image image = GenImageColor(width,height,BLANK);
             
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                 //   if (grid[x-1][y]!=0 && x-1>=0 && grid[x+1][y]!=0 && x+1<width && grid[x][y-1]!=0 && y-1>=0 && grid[x][y+1]!=0 && y+1<height) continue;
+                         if (grid[y][x] != 0) ImageDrawPixel(&image,x,y,tiles[grid[x][y]].color);
+                }
+            }
+            texture = LoadTextureFromImage(image);
+            UnloadImage(image);
             if (pixelCount > 0) {
                 float pixelMass = mass / pixelCount;
                 momentOfInertia = 0.0f;
@@ -84,89 +100,6 @@ namespace Physics {
             }
         }
     };
-
-    ShapeGrid CreateDiamond(float pixelSize = 5.0f) {
-        ShapeGrid shape;
-        shape.width = 5;
-        shape.height = 5;
-        shape.pixelSize = pixelSize;
-        shape.rotation = 0;
-        shape.angularVelocity = 0;
-        shape.mass = 1.0f;
-        shape.restitution = 0.8f;
-        memset(shape.grid, 0, sizeof(shape.grid));
-        bool triangle[5][5] = {
-            {0,0,1,0,0},
-            {0,1,1,1,0},
-            {1,1,1,1,1},
-            {0,1,1,1,0},
-            {0,0,1,0,0}
-        };
-        
-        for (int y = 0; y < 5; y++) {
-            for (int x = 0; x < 5; x++) {
-                shape.grid[y][x] = triangle[y][x];
-            }
-        }
-        
-        shape.CalculatePixels();
-        return shape;
-    }
-
-    ShapeGrid CreateSquare(float pixelSize = 5.0f) {
-        ShapeGrid shape;
-        shape.width = 5;
-        shape.height = 5;
-        shape.pixelSize = pixelSize;
-        shape.rotation = 0;
-        shape.angularVelocity = 0;
-        shape.mass = 1.0f;
-        shape.restitution = 0.8f;
-        memset(shape.grid, 0, sizeof(shape.grid));
-        bool triangle[5][5] = {
-            {1,1,1,1,1},
-            {1,1,1,1,1},
-            {1,1,1,1,1},
-            {1,1,1,1,1},
-            {1,1,1,1,1}
-        };
-        
-        for (int y = 0; y < 5; y++) {
-            for (int x = 0; x < 5; x++) {
-                shape.grid[y][x] = triangle[y][x];
-            }
-        }
-        
-        shape.CalculatePixels();
-        return shape;
-    }
-
-    ShapeGrid CreateTriangle(float pixelSize = 5.0f) {
-        ShapeGrid shape;
-        shape.width = 5;
-        shape.height = 3;
-        shape.pixelSize = pixelSize;
-        shape.rotation = 0;
-        shape.angularVelocity = 0;
-        shape.mass = 1.0f;
-        shape.restitution = 0.8f;
-        memset(shape.grid, 0, sizeof(shape.grid));
-        bool triangle[3][5] = {
-            {0,0,1,0,0},
-            {0,1,1,1,0},
-            {1,1,1,1,1}
-        };
-        
-        for (int y = 0; y < 3; y++) {
-            for (int x = 0; x < 5; x++) {
-                shape.grid[y][x] = triangle[y][x];
-            }
-        }
-        
-        shape.CalculatePixels();
-        return shape;
-    }
-
     struct Chunk {
         int ids[MAX_BALL_COUNT_PER_CHUNK];
         int count;
@@ -182,6 +115,7 @@ namespace Physics {
             for (int y = 0; y < GRID_H; y++) map->grid[x][y].count = 0;
         }
 
+        #pragma parallel for 
         for (int i = 0; i < (int)map->balls.size(); i++) {
             int cx = (int)(map->balls[i].x / chunkSize);
             int cy = (int)(map->balls[i].y / chunkSize);
@@ -217,7 +151,8 @@ namespace Physics {
                 for (int i = 0; i < chunk.count; i++) {
                     ShapeGrid& other = map->balls[chunk.ids[i]];
                     if (other.id <= ball.id) continue;
-                    
+                        
+                    if (!CheckCollisionRecs(ball.AABB, other.AABB)) continue;
                     float dx = ball.x - other.x;
                     float dy = ball.y - other.y;
                     float dist = sqrtf(dx*dx + dy*dy);

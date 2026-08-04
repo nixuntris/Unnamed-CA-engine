@@ -146,10 +146,14 @@ struct Player {
                         int chunkX = updateX / CA::c_chunkSize;
                         int chunkY = updateY / CA::c_chunkSize;
                         if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
-                        world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].lifeTime = world->materials[choosen].lifeTime;
-                        world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = choosen;
-                        world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
-                        world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
+                        //world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].lifeTime = world->materials[choosen].lifeTime;
+                        //world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = choosen;
+                        world->lightMap[{chunkX, chunkY}].rSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.r)/255.0f*4.0f;
+                        world->lightMap[{chunkX, chunkY}].gSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.g)/255.0f*4.0f;
+                        world->lightMap[{chunkX, chunkY}].bSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.b)/255.0f*4.0f;
+                        
+                        //world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
+                        //world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
                     }
                 }
             }
@@ -166,6 +170,8 @@ struct Player {
                         int chunkX = updateX / CA::c_chunkSize;
                         int chunkY = updateY / CA::c_chunkSize;
                         if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
+                        std::cout<<world->lightMap[{chunkX, chunkY}].r[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] <<" "<<world->lightMap[{chunkX, chunkY}].g[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize]<<" "<<world->lightMap[{chunkX, chunkY}].b[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize]<<"\n";
+
                         world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = 0;
                         world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
                         world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
@@ -226,15 +232,27 @@ public:
                 { 80, 200, 230, 255 }, { 100, 220, 240, 255 }, { 140, 240, 250, 255 },
                 { 180, 250, 255, 255 }
             };
-            if (IsMouseButtonDown(2) && frame%10==0) {
+            if (IsMouseButtonDown(2) && frame%2==0) {
                             
                 Physics::ShapeGrid newShape;
-                float pixelSize = (float)GetRandomValue(3, 6);
+                float pixelSize = 1;
                 int val = GetRandomValue(0,2);
-                if (val==0) newShape = Physics::CreateTriangle(pixelSize);
-                if (val==1) newShape = Physics::CreateDiamond(pixelSize);
-                if (val==2) newShape = Physics::CreateSquare(pixelSize);
-                            
+                newShape.width = 8;
+                newShape.height = 8;
+                newShape.pixelSize = pixelSize;
+                newShape.rotation = 0;
+                newShape.angularVelocity = 0;
+                newShape.mass = 1.0f;
+                newShape.restitution = 0.8f;
+                memset(newShape.grid, 0, sizeof(newShape.grid));
+                
+                for (int y = 0; y < 8; y++) {
+                    for (int x = 0; x < 8; x++) {
+                        newShape.grid[y][x] = 1;
+                    }
+                }
+                
+                newShape.CalculatePixels(world.materials);      
                 newShape.x = (GetMouseX() / player.cameraZoom) + player.cameraPosition.x;
                 newShape.y = (GetMouseY() / player.cameraZoom) + player.cameraPosition.y;
                 newShape.id = (int)map->balls.size();
@@ -256,6 +274,7 @@ public:
                 const int subSteps = 4; 
                 for (int s = 0; s < subSteps; s++) {
                     
+                    #pragma parallel for 
                     for (auto& ball : map->balls) {
                         if (!ball.held) {
                             ball.y_vel += 0.5f / subSteps; 
@@ -267,6 +286,7 @@ public:
                     }
 
                     M_RecalculateGrid(map);
+                    #pragma parallel for 
                     for (int i = 0; i < (int)map->balls.size(); i++) {
                         map->balls[i].angularVelocity *= 0.98;
                         En_CollisionBall(i, map, &world);
@@ -365,33 +385,57 @@ public:
             drawEnd = std::chrono::high_resolution_clock::now();
             auto drawDuration = std::chrono::duration_cast<std::chrono::microseconds>(drawEnd - drawStart).count();
             for (auto& b : map->balls) {
-                for (int i = 0; i < b.pixelCount; i++) {
-                    float cosA = cosf(b.rotation);
-                    float sinA = sinf(b.rotation);
-                    float localX = b.pixelPositions[i][0];
-                    float localY = b.pixelPositions[i][1];
-                    
-                    float rotatedX = localX * cosA - localY * sinA;
-                    float rotatedY = localX * sinA + localY * cosA;
-                    
-                    float worldX = b.x + rotatedX;
-                    float worldY = b.y + rotatedY;
-                    float screenX = (worldX - player.cameraPosition.x) * player.cameraZoom;
-                    float screenY = (worldY - player.cameraPosition.y) * player.cameraZoom;
-                    
-                    float pixelSize = b.pixelSize * player.cameraZoom;
-                    Color color = {float(b.color.r)/255.0f* world.lightMap[{worldX/CA::c_chunkSize,worldY/CA::c_chunkSize}].r[(int)worldX%CA::c_chunkSize][(int)worldY%CA::c_chunkSize],
-                    float(b.color.g)/255.0f*world.lightMap[{worldX/CA::c_chunkSize,worldY/CA::c_chunkSize}].g[(int)worldX%CA::c_chunkSize][(int)worldY%CA::c_chunkSize],
-                    float(b.color.b)/255.0f*world.lightMap[{worldX/CA::c_chunkSize,worldY/CA::c_chunkSize}].b[(int)worldX%CA::c_chunkSize][(int)worldY%CA::c_chunkSize],255};
-                    DrawRectangle(
-                        screenX - pixelSize/2,
-                        screenY - pixelSize/2,
-                        pixelSize + 1, 
-                        pixelSize + 1,
-                        color
-                    );
-                }
+                float screenX = (b.x - player.cameraPosition.x) * player.cameraZoom;
+                float screenY = (b.y - player.cameraPosition.y) * player.cameraZoom;
                 
+                float scaledPixelSize = b.pixelSize * player.cameraZoom;
+                float scaledWidth = b.width * scaledPixelSize;
+                float scaledHeight = b.height * scaledPixelSize;
+                
+                float rotationDegrees = b.rotation * (180.0f / PI);
+                
+                Vector2 pivot = {
+                    scaledWidth / 2.0f,
+                    scaledHeight / 2.0f
+                };
+
+                float halfW = b.width*b.pixelSize/2.0f;
+                float halfH = b.height*b.pixelSize/2.0f;
+                Vector2 corners[4] = {
+                    {-halfW*2,-halfH*2},
+                    {halfW*2,-halfH*2},
+                    {halfW*2,halfH*2},
+                    {-halfW*2,halfH*2}
+                };
+                float cosA = cosf(b.rotation);
+                float sinA = sinf(b.rotation);
+                float minX = 100000000000, minY = 100000000000;
+                float maxY =  -100000000000, maxX = -100000000000;
+                for (int i = 0; i < 4; i++) {
+                    float rotX = corners[i].x*cosA-corners[i].y*sinA;
+                    float rotY = corners[i].x*sinA+corners[i].y*cosA;
+                    float worldX = b.x+rotX;
+                    float worldY = b.y+rotY;
+                    if (worldX < minX) minX = worldX;
+                    if (worldX > maxX) maxX = worldX;
+                    if (worldY < minY) minY = worldY;
+                    if (worldY > maxY) maxY = worldY;
+                }
+                            
+                b.AABB.x = minX-halfW;
+                b.AABB.y = minY-halfH;
+                b.AABB.width = maxX - minX;
+                b.AABB.height = maxY - minY;
+                
+                DrawTexturePro(
+                    b.texture,
+                    (Rectangle){0, 0, (float)b.texture.width, (float)b.texture.height},
+                    (Rectangle){screenX - scaledWidth/2, screenY - scaledHeight/2, scaledWidth, scaledHeight},
+                    pivot,
+                    rotationDegrees,
+                    WHITE
+                );
+            //    DrawRectangleLines((b.AABB.x-player.cameraPosition.x)*player.cameraZoom,(b.AABB.y-player.cameraPosition.y)*player.cameraZoom,b.AABB.width*player.cameraZoom,b.AABB.height*player.cameraZoom,RED);
             }
             player.Draw();
 

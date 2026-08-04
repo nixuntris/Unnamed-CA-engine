@@ -12,8 +12,8 @@ namespace CA {
     const int c_sleepTime = 30; //Number of frames a chunk waits before going offline untill woken up by a neighbouring chunk
     const int c_screenWidth = 1920; //World width
     const int c_screenHeight = 1080; //World height. Both disconnected from what's in the rigid bodies file
-
-
+    const int c_lightResolution = 1; 
+    const int c_gridLightSize = c_chunkSize/c_lightResolution;
     
     /**
      * Tile - Defines the properties/behavior of a cell type.
@@ -28,6 +28,7 @@ namespace CA {
         bool gas;                // If true, moves upward (like smoke)
         bool goesBothWays;       // Unused, reserved for side-to-side movement
         bool falls;              // If true, moves downward (like sand/gravel)
+        int mass;                // Used for rigid bodies
         Color color;             // Color used when rendering
         int dissolves;           // Tile type that dissolves this one (-1 = no dissolve)
         bool fluid;              // If true, behaves like water (flows down and sideways)
@@ -395,10 +396,16 @@ namespace CA {
 
     struct CAGI {
         bool generated = false;
-        float r[c_chunkSize][c_chunkSize];
-        float g[c_chunkSize][c_chunkSize];
-        float b[c_chunkSize][c_chunkSize];
+        float r[c_gridLightSize][c_gridLightSize];
+        float g[c_gridLightSize][c_gridLightSize];
+        float b[c_gridLightSize][c_gridLightSize];
+        float rSource[c_gridLightSize][c_gridLightSize];
+        float gSource[c_gridLightSize][c_gridLightSize];
+        float bSource[c_gridLightSize][c_gridLightSize];
         int hashValues[c_chunkSize][c_chunkSize];
+                float rNext[c_chunkSize][c_chunkSize];
+                float gNext[c_chunkSize][c_chunkSize];
+                float bNext[c_chunkSize][c_chunkSize];
         Image image;
         Texture texture;
         bool updated;
@@ -414,7 +421,62 @@ namespace CA {
         }   
         void Update(Cell cells[c_chunkSize][c_chunkSize], std::vector<Tile> &tiles, bool renderLight) {
             if (renderLight) {
-                    
+               //for (int x = 1; x < c_gridLightSize - 1; x++) {
+               //    for (int y = 1; y < c_gridLightSize - 1; y++) {
+               //        
+               //        if (cells[x][y].type!=0) {
+               //            rNext[x][y] = 0; gNext[x][y] = 0; bNext[x][y] = 0;
+               //            continue;
+               //        }
+
+               //        int radius = 8; 
+               //        int count = 0;
+               //        float sumR = 0, sumG = 0, sumB = 0;
+
+               //        for (int dx = -radius; dx <= radius; dx += radius) {
+               //            for (int dy = -radius; dy <= radius; dy += radius) {
+               //                if (dx == 0 && dy == 0) continue;
+
+               //                int nx = x + dx;
+               //                int ny = y + dy;
+
+               //                if (nx > 0 && nx < c_gridLightSize - 1 && ny > 0 && ny < c_gridLightSize - 1) {
+               //                    count++;
+               //                    if (cells[nx][ny].type != 0) {
+               //                        sumR += r[x][y];
+               //                        sumG += g[x][y];
+               //                        sumB += b[x][y];
+               //                    } else {
+               //                        sumR += r[nx][ny];
+               //                        sumG += g[nx][ny];
+               //                        sumB += b[nx][ny];
+               //                    }
+               //                }
+               //            }
+               //        }
+               //        float avgR = sumR / count;
+               //        float avgG = sumG / count;
+               //        float avgB = sumB / count;
+
+               //        float spreadSpeed = 0.95;
+               //        rNext[x][y] = r[x][y] + (avgR - r[x][y]) * spreadSpeed;
+               //        gNext[x][y] = g[x][y] + (avgG - g[x][y]) * spreadSpeed;
+               //        bNext[x][y] = b[x][y] + (avgB - b[x][y]) * spreadSpeed;
+               //        rNext[x][y] *= 0.995;
+               //        gNext[x][y] *= 0.995;
+               //        bNext[x][y] *= 0.995;
+               //        rNext[x][y] += (rSource[x][y] * 5);
+               //        gNext[x][y] += (gSource[x][y] * 5);
+               //        bNext[x][y] += (bSource[x][y] * 5);
+               //        if (rNext[x][y] > 50.0f) rNext[x][y] = 50.0f;
+               //        if (gNext[x][y] > 50.0f) gNext[x][y] = 50.0f;
+               //        if (bNext[x][y] > 50.0f) bNext[x][y] = 50.0f;
+               //    }
+               //}
+
+              // std::memcpy(r, rNext, sizeof(r));
+              // std::memcpy(g, gNext, sizeof(g));
+              // std::memcpy(b, bNext, sizeof(b));
                 for (int x = 0; x < c_chunkSize; x++) {
                     for (int y = 0; y < c_chunkSize; y++) {
                         Color tileColor = tiles[cells[x][y].type].color;
@@ -431,9 +493,12 @@ namespace CA {
                                 tileColor.b*=1.05;
                             }
                         }
-                        unsigned char finalR = (unsigned char)((tileColor.r / 255.0f) * r[x][y]);
-                        unsigned char finalG = (unsigned char)((tileColor.g / 255.0f) * g[x][y]);
-                        unsigned char finalB = (unsigned char)((tileColor.b / 255.0f) * b[x][y]);
+                        
+                
+
+                        unsigned char finalR = (unsigned char)((tileColor.r / 255.0f) * r[x/c_lightResolution][y/c_lightResolution]);
+                        unsigned char finalG = (unsigned char)((tileColor.g / 255.0f) * g[x/c_lightResolution][y/c_lightResolution]);
+                        unsigned char finalB = (unsigned char)((tileColor.b / 255.0f) * b[x/c_lightResolution][y/c_lightResolution]);
                         ImageDrawPixel(&image,x,y,{finalR,finalG,finalB,255});
                     }
                 }
@@ -470,11 +535,18 @@ namespace CA {
             updated = false;
             image = GenImageColor(c_chunkSize,c_chunkSize,BLACK);
             texture = LoadTextureFromImage(image);
-            for (int x = 0; x < c_chunkSize; x++) {
-                for (int y = 0; y < c_chunkSize; y++) {
-                    r[x][y] = 30;
-                    g[x][y] = 30;
-                    b[x][y] = 30;
+            for (int x = 0; x < c_gridLightSize; x++) {
+                for (int y = 0; y < c_gridLightSize; y++) {
+                    r[x][y] = 0;
+                    g[x][y] = 0;
+                    b[x][y] = 0;
+                    rSource[x][y] = 0;
+                    gSource[x][y] = 0;
+                    bSource[x][y] = 0;
+                
+                        rNext[x][y] = 0;
+                        gNext[x][y] = 0;
+                        bNext[x][y] = 0;
                     hashValues[x][y] = hash(x+cx*c_chunkSize,y+cy*c_chunkSize);
                 }
             }
@@ -581,6 +653,7 @@ namespace CA {
                     else if (k == "goes_to_sides") current->goesBothWays = (v == "true");
                     else if (k == "color") current->color = parseColor(v);
                     else if (k == "dissolve" && v != "None") current->dissolves = std::stoi(v);
+                    else if (k == "mass" && v != "None") current->mass = std::stoi(v);
                     else if (k == "lifeTime" && v != "None") current->lifeTime = std::stoi(v);
                     else if (k == "leaveBehind" && v != "None") current->leaveBehind = std::stoi(v);
                     else if (k=="lightAbsorb") current->lightAbsorb = float(std::stoi(v))/100.0f;
@@ -767,14 +840,14 @@ namespace CA {
             
             float lightStrength = 1;
             int endedY = 0;
-            for (int y = 0; y < chunksY*c_chunkSize; y++) {
+            for (int y = 0; y < (chunksY*c_chunkSize); y+=1) {
                 auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
                 if (!chunkMap[{x/c_chunkSize,y/c_chunkSize}].containsData) y+= c_chunkSize;
                 if (chunkMap[{x/c_chunkSize,y/c_chunkSize}].generated) {
 
-                    chunk.r[x%c_chunkSize][y%c_chunkSize] = WHITE.r*lightStrength;
-                    chunk.g[x%c_chunkSize][y%c_chunkSize] = WHITE.g*lightStrength;
-                    chunk.b[x%c_chunkSize][y%c_chunkSize] = WHITE.b*lightStrength;
+                    chunk.r[(x%c_chunkSize)/c_lightResolution][(y%c_chunkSize)/c_lightResolution] = WHITE.r*lightStrength;
+                    chunk.g[(x%c_chunkSize)/c_lightResolution][(y%c_chunkSize)/c_lightResolution] = WHITE.g*lightStrength;
+                    chunk.b[(x%c_chunkSize)/c_lightResolution][(y%c_chunkSize)/c_lightResolution] = WHITE.b*lightStrength;
 
                     chunk.updated = true;
                                 
@@ -787,14 +860,14 @@ namespace CA {
                 endedY= y;
             }
             
-            for (int y = endedY; y < endedY+300 && y<c_screenHeight; y++) {
+            for (int y = endedY; y < endedY+300 && y<c_screenHeight; y+=2) {
                 
                 if (lightMap[{x/c_chunkSize,y/c_chunkSize}].generated) {
                     auto& chunk = lightMap[{x/c_chunkSize,y/c_chunkSize}];
                 
-                    chunk.r[x%c_chunkSize][y%c_chunkSize] = 30;
-                    chunk.g[x%c_chunkSize][y%c_chunkSize] = 30;
-                    chunk.b[x%c_chunkSize][y%c_chunkSize] = 30;
+                    chunk.r[(x%c_chunkSize)/c_lightResolution][(y%c_chunkSize)/c_lightResolution] = 30;
+                    chunk.g[(x%c_chunkSize)/c_lightResolution][(y%c_chunkSize)/c_lightResolution] = 30;
+                    chunk.b[(x%c_chunkSize)/c_lightResolution][(y%c_chunkSize)/c_lightResolution] = 30;
                 }
             }
         }

@@ -9,6 +9,7 @@ leaveBehind = 0
 color = (1024,191,255,255)
 lifeTime = -1
 lightAbsorb = 0
+mass = 0
 
 sand:
 weight = 3
@@ -22,6 +23,7 @@ gas = false
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 85
+mass = 5
 
 stone:
 falls = false
@@ -35,6 +37,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 98
+mass = 10
 
 water:
 falls = true
@@ -48,6 +51,7 @@ gas = false
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 96
+mass = 3
 
 salt:
 falls = true
@@ -61,6 +65,7 @@ gas = false
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 97
+mass = 4
 
 wood:
 falls = false
@@ -74,6 +79,7 @@ gas = false
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 97
+mass = 8
 
 fire:
 falls = true
@@ -88,6 +94,7 @@ gas = false
 leaveBehind = 7
 lifeTime = 500
 lightAbsorb = 97
+mass = 1
 
 smoke:
 weight = 0
@@ -101,6 +108,7 @@ gas = true
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 97
+mass = 1
 
 dirt:
 falls = false
@@ -114,6 +122,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 98
+mass = 6
 
 grass:
 falls = false
@@ -127,6 +136,7 @@ dissolve = None
 leaveBehind = 9
 lifeTime = -1
 lightAbsorb = 98
+mass = 5
 
 mud:
 falls = false
@@ -140,6 +150,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 90
+mass = 7
 
 leaf:
 falls = false
@@ -153,6 +164,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 97
+mass = 2
 
 log:
 falls = false
@@ -166,6 +178,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 85
+mass = 9
 
 gravel:
 falls = true
@@ -179,6 +192,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 97
+mass = 4
 
 clay:
 falls = false
@@ -192,6 +206,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 80
+mass = 6
 
 snow:
 falls = true
@@ -205,6 +220,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 97
+mass = 2
 
 ice:
 falls = false
@@ -218,6 +234,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 97
+mass = 4
 
 coal:
 falls = false
@@ -231,6 +248,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 100
+mass = 7
 
 iron_ore:
 falls = false
@@ -244,6 +262,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 90
+mass = 10
 
 gold_ore:
 falls = false
@@ -257,6 +276,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 85
+mass = 12
 
 lava:
 falls = true
@@ -270,6 +290,7 @@ dissolve = 3
 leaveBehind = 7
 lifeTime = -1
 lightAbsorb = 97
+mass = 5
 
 glass:
 falls = false
@@ -283,6 +304,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 100
+mass = 8
 
 brick:
 falls = false
@@ -296,6 +318,7 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 99
+mass = 9
 
 bedrock:
 falls = false
@@ -309,3 +332,4 @@ dissolve = None
 leaveBehind = 0
 lifeTime = -1
 lightAbsorb = 100
+mass = 50
