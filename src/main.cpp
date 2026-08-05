@@ -146,14 +146,14 @@ struct Player {
                         int chunkX = updateX / CA::c_chunkSize;
                         int chunkY = updateY / CA::c_chunkSize;
                         if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
-                        //world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].lifeTime = world->materials[choosen].lifeTime;
-                        //world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = choosen;
-                        world->lightMap[{chunkX, chunkY}].rSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.r)/255.0f*4.0f;
-                        world->lightMap[{chunkX, chunkY}].gSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.g)/255.0f*4.0f;
-                        world->lightMap[{chunkX, chunkY}].bSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.b)/255.0f*4.0f;
+                        world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].lifeTime = world->materials[choosen].lifeTime;
+                        world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = choosen;
+                       // world->lightMap[{chunkX, chunkY}].rSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.r)/255.0f*4.0f;
+                       // world->lightMap[{chunkX, chunkY}].gSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.g)/255.0f*4.0f;
+                       // world->lightMap[{chunkX, chunkY}].bSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.b)/255.0f*4.0f;
                         
-                        //world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
-                        //world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
+                        world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
+                        world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
                     }
                 }
             }
@@ -170,7 +170,6 @@ struct Player {
                         int chunkX = updateX / CA::c_chunkSize;
                         int chunkY = updateY / CA::c_chunkSize;
                         if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
-                        std::cout<<world->lightMap[{chunkX, chunkY}].r[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] <<" "<<world->lightMap[{chunkX, chunkY}].g[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize]<<" "<<world->lightMap[{chunkX, chunkY}].b[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize]<<"\n";
 
                         world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = 0;
                         world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
@@ -398,35 +397,8 @@ public:
                     scaledWidth / 2.0f,
                     scaledHeight / 2.0f
                 };
-
-                float halfW = b.width*b.pixelSize/2.0f;
-                float halfH = b.height*b.pixelSize/2.0f;
-                Vector2 corners[4] = {
-                    {-halfW*2,-halfH*2},
-                    {halfW*2,-halfH*2},
-                    {halfW*2,halfH*2},
-                    {-halfW*2,halfH*2}
-                };
-                float cosA = cosf(b.rotation);
-                float sinA = sinf(b.rotation);
-                float minX = 100000000000, minY = 100000000000;
-                float maxY =  -100000000000, maxX = -100000000000;
-                for (int i = 0; i < 4; i++) {
-                    float rotX = corners[i].x*cosA-corners[i].y*sinA;
-                    float rotY = corners[i].x*sinA+corners[i].y*cosA;
-                    float worldX = b.x+rotX;
-                    float worldY = b.y+rotY;
-                    if (worldX < minX) minX = worldX;
-                    if (worldX > maxX) maxX = worldX;
-                    if (worldY < minY) minY = worldY;
-                    if (worldY > maxY) maxY = worldY;
-                }
-                            
-                b.AABB.x = minX-halfW;
-                b.AABB.y = minY-halfH;
-                b.AABB.width = maxX - minX;
-                b.AABB.height = maxY - minY;
-                
+                b.CalculateAABB();
+                b.CalculatePixelRot();
                 DrawTexturePro(
                     b.texture,
                     (Rectangle){0, 0, (float)b.texture.width, (float)b.texture.height},
@@ -435,7 +407,6 @@ public:
                     rotationDegrees,
                     WHITE
                 );
-            //    DrawRectangleLines((b.AABB.x-player.cameraPosition.x)*player.cameraZoom,(b.AABB.y-player.cameraPosition.y)*player.cameraZoom,b.AABB.width*player.cameraZoom,b.AABB.height*player.cameraZoom,RED);
             }
             player.Draw();
 
@@ -453,7 +424,7 @@ public:
                 std::cout << "  Other: " << (frameDuration - physicsDuration - chunkGenDuration - lightUpdateDuration - drawDuration) << " μs" << std::endl;
                 std::cout << "====================================" << std::endl;
             }
-            
+            std::cout << " Object count: " << map->balls.size()<<"\n";
             frame++;
             
         }

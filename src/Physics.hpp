@@ -16,9 +16,9 @@ namespace Physics {
         { 80, 200, 230, 255 }, { 100, 220, 240, 255 }, { 140, 240, 250, 255 },
         { 180, 250, 255, 255 }
     };
-    const int WORLD_WIDTH = 1920*4;
-    const int WORLD_HEIGHT = 1080*4;
-    const int chunkSize = 64; 
+    const int WORLD_WIDTH = CA::c_screenWidth;
+    const int WORLD_HEIGHT = CA::c_screenHeight;
+    const int chunkSize = 32; 
     const int MAX_BALL_COUNT_PER_CHUNK = 128;
     const int GRID_W = (WORLD_WIDTH / chunkSize) + 1;
     const int GRID_H = (WORLD_HEIGHT / chunkSize) + 1;
@@ -51,6 +51,40 @@ namespace Physics {
         float restitution;
         float momentOfInertia;  
         Texture texture;
+        Vector2 ballPixels[MAX_PIXELS];
+        
+        void CalculateAABB() {
+            
+
+            float halfW = width*pixelSize/2.0f;
+            float halfH = height*pixelSize/2.0f;
+            Vector2 corners[4] = {
+                {-halfW*2,-halfH*2},
+                {halfW*2,-halfH*2},
+                {halfW*2,halfH*2},
+                {-halfW*2,halfH*2}
+            };
+            float cosA = cosf(rotation);
+            float sinA = sinf(rotation);
+            float minX = 100000000000, minY = 100000000000;
+            float maxY =  -100000000000, maxX = -100000000000;
+            for (int i = 0; i < 4; i++) {
+                float rotX = corners[i].x*cosA-corners[i].y*sinA;
+                float rotY = corners[i].x*sinA+corners[i].y*cosA;
+                float worldX = x+rotX;
+                float worldY = y+rotY;
+                if (worldX < minX) minX = worldX;
+                if (worldX > maxX) maxX = worldX;
+                if (worldY < minY) minY = worldY;
+                if (worldY > maxY) maxY = worldY;
+            }
+                        
+            AABB.x = minX-halfW;
+            AABB.y = minY-halfH;
+            AABB.width = maxX - minX;
+            AABB.height = maxY - minY;
+            
+        }
         void CalculatePixels(std::vector<CA::Tile> &tiles) {
             pixelCount = 0;
             float maxDist = 0;
@@ -99,6 +133,17 @@ namespace Physics {
                 momentOfInertia = 0.001f; 
             }
         }
+        void CalculatePixelRot() {
+            float cosA = cosf(rotation);
+            float sinA = sinf(rotation);
+            for (int p = 0; p < pixelCount; p++) {
+                float rx = pixelPositions[p][0] * cosA - pixelPositions[p][1] * sinA;
+                float ry = pixelPositions[p][0] * sinA + pixelPositions[p][1] * cosA;
+                ballPixels[p].x = x + rx;
+                ballPixels[p].y = y + ry;
+            }
+            
+        }
     };
     struct Chunk {
         int ids[MAX_BALL_COUNT_PER_CHUNK];
@@ -115,7 +160,6 @@ namespace Physics {
             for (int y = 0; y < GRID_H; y++) map->grid[x][y].count = 0;
         }
 
-        #pragma parallel for 
         for (int i = 0; i < (int)map->balls.size(); i++) {
             int cx = (int)(map->balls[i].x / chunkSize);
             int cy = (int)(map->balls[i].y / chunkSize);
@@ -133,16 +177,8 @@ namespace Physics {
         int cx = (int)(ball.x / chunkSize);
         int cy = (int)(ball.y / chunkSize);
         
-        Vector2 ballPixels[MAX_PIXELS];
-        for (int p = 0; p < ball.pixelCount; p++) {
-            float cosA = cosf(ball.rotation);
-            float sinA = sinf(ball.rotation);
-            float rx = ball.pixelPositions[p][0] * cosA - ball.pixelPositions[p][1] * sinA;
-            float ry = ball.pixelPositions[p][0] * sinA + ball.pixelPositions[p][1] * cosA;
-            ballPixels[p].x = ball.x + rx;
-            ballPixels[p].y = ball.y + ry;
-        }
-        
+        float cosA = cosf(ball.rotation);
+        float sinA = sinf(ball.rotation);
         for (int nx = cx - 1; nx <= cx + 1; nx++) {
             for (int ny = cy - 1; ny <= cy + 1; ny++) {
                 if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H) continue;
@@ -158,16 +194,6 @@ namespace Physics {
                     float dist = sqrtf(dx*dx + dy*dy);
                     if (dist > ball.collisionRadius + other.collisionRadius) continue;
                     
-                    Vector2 otherPixels[MAX_PIXELS];
-                    for (int p = 0; p < other.pixelCount; p++) {
-                        float cosA = cosf(other.rotation);
-                        float sinA = sinf(other.rotation);
-                        float rx = other.pixelPositions[p][0] * cosA - other.pixelPositions[p][1] * sinA;
-                        float ry = other.pixelPositions[p][0] * sinA + other.pixelPositions[p][1] * cosA;
-                        otherPixels[p].x = other.x + rx;
-                        otherPixels[p].y = other.y + ry;
-                    }
-                    
                     float totalPenX = 0, totalPenY = 0;
                     int overlapCount = 0;
                     float minDist = (ball.pixelSize + other.pixelSize) * 0.5f;
@@ -177,8 +203,8 @@ namespace Physics {
                     
                     for (int p1 = 0; p1 < ball.pixelCount; p1++) {
                         for (int p2 = 0; p2 < other.pixelCount; p2++) {
-                            float dxp = ballPixels[p1].x - otherPixels[p2].x;
-                            float dyp = ballPixels[p1].y - otherPixels[p2].y;
+                            float dxp = ball.ballPixels[p1].x - other.ballPixels[p2].x;
+                            float dyp = ball.ballPixels[p1].y - other.ballPixels[p2].y;
                             float distSq = dxp*dxp + dyp*dyp;
                             if (distSq < minDist*minDist && distSq > 0.0001f) {
                                 float distP = sqrtf(distSq);
@@ -189,8 +215,8 @@ namespace Physics {
                                 totalPenY += ny * pen;
                                 overlapCount++;
                                 
-                                contactSumX += (ballPixels[p1].x + otherPixels[p2].x) * 0.5f;
-                                contactSumY += (ballPixels[p1].y + otherPixels[p2].y) * 0.5f;
+                                contactSumX += (ball.ballPixels[p1].x + other.ballPixels[p2].x) * 0.5f;
+                                contactSumY += (ball.ballPixels[p1].y + other.ballPixels[p2].y) * 0.5f;
                                 contactCount++;
                             }
                         }
@@ -215,12 +241,10 @@ namespace Physics {
                             other.x -= normX * separation * otherRatio;
                             other.y -= normY * separation * otherRatio;
                             for (int p = 0; p < ball.pixelCount; p++) {
-                                float cosA = cosf(ball.rotation);
-                                float sinA = sinf(ball.rotation);
                                 float rx = ball.pixelPositions[p][0] * cosA - ball.pixelPositions[p][1] * sinA;
                                 float ry = ball.pixelPositions[p][0] * sinA + ball.pixelPositions[p][1] * cosA;
-                                ballPixels[p].x = ball.x + rx;
-                                ballPixels[p].y = ball.y + ry;
+                                ball.ballPixels[p].x = ball.x + rx;
+                                ball.ballPixels[p].y = ball.y + ry;
                             }
                         }
                         if (contactCount > 0) {
@@ -301,8 +325,8 @@ namespace Physics {
                         float contactSumX = 0.0f, contactSumY = 0.0f;
                         
                         for (int p = 0; p < ball.pixelCount; p++) {
-                            float dxp = ballPixels[p].x - blockWorldX;
-                            float dyp = ballPixels[p].y - blockWorldY;
+                            float dxp = ball.ballPixels[p].x - blockWorldX;
+                            float dyp = ball.ballPixels[p].y - blockWorldY;
                             float distSq = dxp*dxp + dyp*dyp;
                             
                             if (distSq < (blockRadius + pixelRadius)*(blockRadius + pixelRadius) && distSq > 0.0001f) {
@@ -313,8 +337,8 @@ namespace Physics {
                                 totalPushX += nx * pen;
                                 totalPushY += ny * pen;
                                 pushCount++;
-                                contactSumX += ballPixels[p].x;
-                                contactSumY += ballPixels[p].y;
+                                contactSumX += ball.ballPixels[p].x;
+                                contactSumY += ball.ballPixels[p].y;
                             }
                         }
                         
@@ -328,14 +352,6 @@ namespace Physics {
                                 ball.x += normX * mag;
                                 ball.y += normY * mag;
                                 
-                                for (int p = 0; p < ball.pixelCount; p++) {
-                                    float cosA = cosf(ball.rotation);
-                                    float sinA = sinf(ball.rotation);
-                                    float rx = ball.pixelPositions[p][0] * cosA - ball.pixelPositions[p][1] * sinA;
-                                    float ry = ball.pixelPositions[p][0] * sinA + ball.pixelPositions[p][1] * cosA;
-                                    ballPixels[p].x = ball.x + rx;
-                                    ballPixels[p].y = ball.y + ry;
-                                }
                                 float contactX = contactSumX / pushCount;
                                 float contactY = contactSumY / pushCount;
                                 float rX = contactX - ball.x;
