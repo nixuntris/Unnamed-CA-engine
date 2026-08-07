@@ -23,8 +23,8 @@ namespace Physics {
     const int GRID_W = (WORLD_WIDTH / chunkSize) + 1;
     const int GRID_H = (WORLD_HEIGHT / chunkSize) + 1;
 
-    const int MAX_SHAPE_SIZE = 8;
-    const int MAX_PIXELS = 64;
+    const int MAX_SHAPE_SIZE = 16;
+    const int MAX_PIXELS = MAX_SHAPE_SIZE*MAX_SHAPE_SIZE;
     
     struct ShapeGrid {
         Rectangle AABB;
@@ -45,6 +45,7 @@ namespace Physics {
         int height;
         float pixelPositions[MAX_PIXELS][2];
         float gridPositions[MAX_PIXELS][2];
+        int pixelsToCoolide[MAX_PIXELS];
         float collisionRadius;
         float pixelSize = 1;
         float mass;
@@ -52,7 +53,8 @@ namespace Physics {
         float momentOfInertia;  
         Texture texture;
         Vector2 ballPixels[MAX_PIXELS];
-        
+        int pushPixel = 0;
+        Image image;
         void CalculateAABB() {
             
 
@@ -90,13 +92,21 @@ namespace Physics {
             float maxDist = 0;
             pivotX = width * pixelSize / 2.0f;
             pivotY = height * pixelSize / 2.0f;
+            pushPixel = 0;
+            for (int i = 0; i < MAX_PIXELS; i++) {
+                pixelsToCoolide[i] = 0;
+            }
+            image = GenImageColor(width,height,BLANK);
             
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     if (grid[x][y]!=0) { 
                         float px = x * pixelSize + pixelSize/2 - pivotX;
                         float py = y * pixelSize + pixelSize/2 - pivotY;
-                     //   if (grid[x-1][y]!=0 && x-1>=0 && grid[x+1][y]!=0 && x+1<width && grid[x][y-1]!=0 && y-1>=0 && grid[x][y+1]!=0 && y+1<height) continue;
+                        if (!(grid[x-1][y]!=0 && x-1>=0 && grid[x+1][y]!=0 && x+1<width && grid[x][y-1]!=0 && y-1>=0 && grid[x][y+1]!=0 && y+1<height)) {
+                            pixelsToCoolide[pushPixel] = pixelCount;
+                            pushPixel++;
+                        };
                         
                         pixelPositions[pixelCount][0] = px;
                         pixelPositions[pixelCount][1] = py;
@@ -111,16 +121,7 @@ namespace Physics {
             }
             collisionRadius = maxDist + pixelSize;
             radius = collisionRadius;
-            Image image = GenImageColor(width,height,BLANK);
-            
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                 //   if (grid[x-1][y]!=0 && x-1>=0 && grid[x+1][y]!=0 && x+1<width && grid[x][y-1]!=0 && y-1>=0 && grid[x][y+1]!=0 && y+1<height) continue;
-                         if (grid[y][x] != 0) ImageDrawPixel(&image,x,y,tiles[grid[x][y]].color);
-                }
-            }
-            texture = LoadTextureFromImage(image);
-            UnloadImage(image);
+           
             if (pixelCount > 0) {
                 float pixelMass = mass / pixelCount;
                 momentOfInertia = 0.0f;
@@ -132,6 +133,34 @@ namespace Physics {
             } else {
                 momentOfInertia = 0.001f; 
             }
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    if (grid[y][x] != 0) ImageDrawPixel(&image,x,y,tiles[grid[x][y]].color);
+                }
+            }
+            texture = LoadTextureFromImage(image);
+        }
+        void Draw(CA::World *world) {
+            float cosA = cosf(rotation);
+            float sinA = sinf(rotation);
+            for (int dy = 0; dy < height; dy++) {
+                for (int dx = 0; dx < width; dx++) {
+                    if (grid[dx][dy]!=0) {
+                                
+                        float rx = dx * cosA - dy * sinA+x;
+                        float ry = dx * sinA + dy * cosA+y;
+                        Color col = world->materials[grid[dx][dy]].color;
+
+                        col.r = col.r * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].r[int(rx)%CA::c_chunkSize][int(ry)%CA::c_chunkSize])/255.0f;
+                        col.g = col.g * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].g[int(rx)%CA::c_chunkSize][int(ry)%CA::c_chunkSize])/255.0f;
+                        col.b = col.b * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].b[int(rx)%CA::c_chunkSize][int(ry)%CA::c_chunkSize])/255.0f;
+                        
+                        ImageDrawPixel(&image,dx,dy,col);
+                    }
+                }
+            }
+            UpdateTexture(texture,image.data);
+                
         }
         void CalculatePixelRot() {
             float cosA = cosf(rotation);
@@ -141,6 +170,7 @@ namespace Physics {
                 float ry = pixelPositions[p][0] * sinA + pixelPositions[p][1] * cosA;
                 ballPixels[p].x = x + rx;
                 ballPixels[p].y = y + ry;
+                
             }
             
         }
@@ -324,7 +354,8 @@ namespace Physics {
                         int pushCount = 0;
                         float contactSumX = 0.0f, contactSumY = 0.0f;
                         
-                        for (int p = 0; p < ball.pixelCount; p++) {
+                        for (int k = 0; k < ball.pushPixel; k++) {
+                            int p = ball.pixelsToCoolide[k];
                             float dxp = ball.ballPixels[p].x - blockWorldX;
                             float dyp = ball.ballPixels[p].y - blockWorldY;
                             float distSq = dxp*dxp + dyp*dyp;

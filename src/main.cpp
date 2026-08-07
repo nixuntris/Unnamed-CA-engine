@@ -26,10 +26,9 @@ struct Player {
         cameraZoom = 2;
     }
     void Control(CA::World *world) {
-        
         float wheel = GetMouseWheelMove();
-        this->cameraZoom += wheel * 0.1f;
-            
+        cameraZoom += wheel * 0.1f;
+        
         if (wheel != 0) {
             Vector2 mousePos = GetMousePosition();
             Vector2 worldPos = {
@@ -42,46 +41,143 @@ struct Player {
             this->cameraPosition.y = worldPos.y - (mousePos.y / this->cameraZoom);
         }
         if (this->cameraZoom < 2.0f) this->cameraZoom = 2.0f;
-        if (this->cameraZoom > 5.0f) this->cameraZoom= 5.0f;
-        if (IsKeyDown(KEY_A)) {
-            cameraPosition.x -= 2/this->cameraZoom;
+        if (this->cameraZoom > 5.0f) this->cameraZoom = 5.0f;
+        
+        // Player size in world units
+        const float playerWidth = 16.0f;  // Width of player hitbox
+        const float playerHeight = 16.0f; // Height of player hitbox
+        const float moveSpeed = 4.0f;
+        const float gravity = 0.5f;
+        const float jumpSpeed =-10.0f;
+        
+        // Calculate world position of player
+        float w = GetScreenWidth();
+        float h = GetScreenHeight();
+        playerPosition = {cameraPosition.x + w/(2*this->cameraZoom), cameraPosition.y + h/(2*this->cameraZoom)};
+        
+        // Apply gravity
+        yVelocity += gravity;
+        
+        // Movement
+        Vector2 moveDir = {0, 0};
+        if (IsKeyDown(KEY_A)) moveDir.x = -1;
+        if (IsKeyDown(KEY_D)) moveDir.x = 1;
+        if (moveDir.x != 0 && moveDir.y != 0) {
+            moveDir.x *= 0.7071f;
+            moveDir.y *= 0.7071f;
         }
-        if (IsKeyDown(KEY_D)) {
-            cameraPosition.x += 2/this->cameraZoom;
-        }if (IsKeyDown(KEY_W)) {
-            cameraPosition.y -= 2/this->cameraZoom;
+        if (IsKeyDown(KEY_SPACE) && IsOnGround(world)) {
+            yVelocity = jumpSpeed;
+            playerPosition.y -= 3;
         }
-        if (IsKeyDown(KEY_S)) {
-            cameraPosition.y += 2/this->cameraZoom;
-        }
-        float w  = GetScreenWidth();
-        float h  = GetScreenHeight();
-        playerPosition = {cameraPosition.x + w/2, cameraPosition.y + h/2};
-        for (int y = 0; y < 4; y++) {
-
-            for (int x = 0; x < 32; x++) {
-                int cx = playerPosition.x+x-16;
-                int cy = playerPosition.y+16+y;
-                if (world->chunkMap[{cx/CA::c_chunkSize,cy/CA::c_chunkSize}].generated) {
-                    if (world->chunkMap[{cx/CA::c_chunkSize,cy/CA::c_chunkSize}].blocks[cx%CA::c_chunkSize][cy%CA::c_chunkSize].type!=0) {
-                 //       std::cout<<"collided on down \n";
-                    }
+        float newX = playerPosition.x + moveDir.x * moveSpeed;
+        float newY = playerPosition.y + yVelocity;
+        if (!IsCollidingWithWorld(newX, playerPosition.y, playerWidth, playerHeight, world)) {
+            playerPosition.x = newX;
+        } else {
+            if (moveDir.x > 0) {
+                int checkX = (int)(playerPosition.x + playerWidth/2 + 1);
+                int checkY = (int)(playerPosition.y);
+                if (IsBlockSolid(checkX, checkY, world) || IsBlockSolid(checkX, checkY + playerHeight - 1, world)) {
+                    playerPosition.x = floorf(playerPosition.x + playerWidth/2) - playerWidth/2;
                 }
-             //   DrawPixel(cx-cameraPosition.x,cy-cameraPosition.y,BLUE);
-
+            } else if (moveDir.x < 0) {
+                int checkX = (int)(playerPosition.x - playerWidth/2 - 1);
+                int checkY = (int)(playerPosition.y);
+                if (IsBlockSolid(checkX, checkY, world) || IsBlockSolid(checkX, checkY + playerHeight - 1, world)) {
+                    playerPosition.x = ceilf(playerPosition.x - playerWidth/2) + playerWidth/2;
+                }
             }
         }
+        if (!IsCollidingWithWorld(playerPosition.x, newY, playerWidth, playerHeight, world)) {
+            playerPosition.y = newY;
+        } else {
+            if (yVelocity > 0) {
+                playerPosition.y = floorf(playerPosition.y + playerHeight/2) - playerHeight/2;
+                yVelocity = 0;
+            } else if (yVelocity < 0) {
+                playerPosition.y = ceilf(playerPosition.y - playerHeight/2) + playerHeight/2;
+                yVelocity = 0;
+            }
+        }
+        cameraPosition.x = playerPosition.x - w/(2*this->cameraZoom);
+        cameraPosition.y = playerPosition.y - h/(2*this->cameraZoom);
+    }
+    bool IsBlockSolid(int x, int y, CA::World *world) {
+        if (x < 0 || x >= CA::c_screenWidth || y < 0 || y >= CA::c_screenHeight) return false;
+        
+        int chunkX = x / CA::c_chunkSize;
+        int chunkY = y / CA::c_chunkSize;
+        
+        if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) return false;
+        
+        auto it = world->chunkMap.find({chunkX, chunkY});
+        if (it == world->chunkMap.end()) return false;
+        
+        uint8_t type = it->second.blocks[x % CA::c_chunkSize][y % CA::c_chunkSize].type;
+        return type != 0;
+    }
+
+    bool IsCollidingWithWorld(float px, float py, float width, float height, CA::World *world) {
+        float halfW = width / 2.0f;
+        float halfH = height / 2.0f;
+        
+        Vector2 corners[4] = {
+            {px - halfW, py - halfH},
+            {px + halfW, py - halfH},
+            {px - halfW, py + halfH},
+            {px + halfW, py + halfH}
+        };
+        
+        for (int i = 0; i < 4; i++) {
+            if (IsBlockSolid((int)corners[i].x, (int)corners[i].y, world)) {
+                return true;
+            }
+        }
+        
+        for (int x = (int)(px - halfW); x <= (int)(px + halfW); x++) {
+            if (IsBlockSolid(x, (int)(py - halfH), world) || 
+                IsBlockSolid(x, (int)(py + halfH), world)) {
+                return true;
+            }
+        }
+        for (int y = (int)(py - halfH); y <= (int)(py + halfH); y++) {
+            if (IsBlockSolid((int)(px - halfW), y, world) || 
+                IsBlockSolid((int)(px + halfW), y, world)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    bool IsOnGround(CA::World *world) {
+        float halfW = 10.0f;
+        float halfH = 16.0f;
+        Vector2 feet[2] = {
+            {playerPosition.x - halfW, playerPosition.y + halfH + 1},
+            {playerPosition.x + halfW, playerPosition.y + halfH + 1}
+        };
+        
+        for (int i = 0; i < 2; i++) {
+            if (IsBlockSolid((int)feet[i].x, (int)feet[i].y, world)) {
+                return true;
+            }
+        }
+        return false;
     }
     void Draw() {
-        float playerSize = 16 * cameraZoom; 
-        
-        //DrawRectangle(
-     //       (playerPosition.x-cameraPosition.x)*cameraZoom, 
-      // //    (playerPosition.y-cameraPosition.y)*cameraZoom, 
-      //      playerSize,           
-      //      playerSize,
-      //      RED
-      //  );
+        float screenX = (playerPosition.x - cameraPosition.x) * cameraZoom;
+        float screenY = (playerPosition.y - cameraPosition.y) * cameraZoom;
+        float scaledWidth = 16 * cameraZoom;
+        float scaledHeight = 16 * cameraZoom;
+        DrawRectangle(
+            screenX - scaledWidth/2,
+            screenY - scaledHeight/2,
+            scaledWidth,
+            scaledHeight,
+            RED
+        );
     }
     void Editor(CA::World *world) {
         bool hover = false;
@@ -326,6 +422,9 @@ public:
                         }
                         
                     }
+                }
+                for (int i = 0; i < (int)map->balls.size(); i++) {
+                    map->balls[i].Draw(&world);
                 }
             }
             for (int x = beginX; x < endX; x++) {
