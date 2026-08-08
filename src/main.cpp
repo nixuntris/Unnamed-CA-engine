@@ -301,6 +301,7 @@ public:
         SetTraceLogLevel(LOG_NONE); 
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 		InitWindow(1920, 1080, "a");
+        
         omp_set_num_threads(32);
         SetTargetFPS(targetFrames);
         

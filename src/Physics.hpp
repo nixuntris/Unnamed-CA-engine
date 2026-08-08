@@ -151,9 +151,9 @@ namespace Physics {
                         float ry = dx * sinA + dy * cosA+y;
                         Color col = world->materials[grid[dx][dy]].color;
 
-                        col.r = col.r * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].r[int(rx)%CA::c_chunkSize][int(ry)%CA::c_chunkSize])/255.0f;
-                        col.g = col.g * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].g[int(rx)%CA::c_chunkSize][int(ry)%CA::c_chunkSize])/255.0f;
-                        col.b = col.b * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].b[int(rx)%CA::c_chunkSize][int(ry)%CA::c_chunkSize])/255.0f;
+                        col.r = col.r * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].r[(int(rx)%CA::c_chunkSize)/CA::c_lightResolution][(int(ry)%CA::c_chunkSize)/CA::c_lightResolution])/255.0f;
+                        col.g = col.g * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].g[(int(rx)%CA::c_chunkSize)/CA::c_lightResolution][(int(ry)%CA::c_chunkSize)/CA::c_lightResolution])/255.0f;
+                        col.b = col.b * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].b[(int(rx)%CA::c_chunkSize)/CA::c_lightResolution][(int(ry)%CA::c_chunkSize)/CA::c_lightResolution])/255.0f;
                         
                         ImageDrawPixel(&image,dx,dy,col);
                     }
