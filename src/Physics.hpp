@@ -27,6 +27,7 @@ namespace Physics {
     const int MAX_PIXELS = MAX_SHAPE_SIZE*MAX_SHAPE_SIZE;
     
     struct ShapeGrid {
+        bool cleanOut[MAX_SHAPE_SIZE][MAX_SHAPE_SIZE];
         Rectangle AABB;
         float x, y;
         int id;
@@ -343,7 +344,7 @@ namespace Physics {
                 for (int bx = startBlockX; bx <= endBlockX; bx++) {
                     for (int by = startBlockY; by <= endBlockY; by++) {
                         uint8_t blockType = chunk.blocks[bx][by].type;
-                        if (blockType == 0) continue;
+                        if (blockType == 0 || blockType==255) continue;
                         
                         float blockWorldX = (checkX * CA::c_chunkSize + bx) + 0.5f;
                         float blockWorldY = (checkY * CA::c_chunkSize + by) + 0.5f;
@@ -354,7 +355,7 @@ namespace Physics {
                         int pushCount = 0;
                         float contactSumX = 0.0f, contactSumY = 0.0f;
                         
-                        for (int k = 0; k < ball.pushPixel; k++) {
+                        for (int k = 0; k < ball.pixelCount; k++) {
                             int p = ball.pixelsToCoolide[k];
                             float dxp = ball.ballPixels[p].x - blockWorldX;
                             float dyp = ball.ballPixels[p].y - blockWorldY;

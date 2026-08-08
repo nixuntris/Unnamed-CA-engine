@@ -314,7 +314,39 @@ namespace CA {
         }
         inline void UpdatePhysics(std::vector<Tile>&tiles) {
             lastUpdate++;
+            /*bool checked[c_chunkSize][c_chunkSize];
+            bool connected[c_chunkSize][c_chunkSize];
+            memset(checked,false,sizeof(checked)); 
+            memset(connected,false,sizeof(checked)); 
+            for (int y = c_chunkSize - 1; y >= 0; y--) {
+                for (int x = 0; x < c_chunkSize; x++) {
+                    if (blocks[x][y].type!=0 && !checked[x][y]) {
+                        if (x-1<0 || x+1>=c_chunkSize || y-1<0 || y+1>=c_chunkSize) {
+                            connected[x][y] = true;
+                            
+                        }
+                        if (connected[x][y]) {
+                            for (int dx = -1; dx <= 1; dx++) {
+                                for (int dy = -1; dy <= 1; dy++) {
+                                    if (dx+x-1<0 || dx+x+1>=c_chunkSize || y+dy-1<0 || y+dy+1>=c_chunkSize) continue;
+                                    connected[dx+x][dy+y] = true;
 
+                                }   
+                            }
+                        }
+                        checked[x][y] = true;
+                    }
+                }
+            }
+            for (int y = c_chunkSize - 1; y >= 0; y--) {
+                for (int x = 0; x < c_chunkSize; x++) {
+                    if (blocks[x][y].type!=0) {
+                        if (!connected[x][y]) {
+                            blocks[x][y].type = 0;
+                        }
+                    }
+                }
+            }*/
             for (int y = c_chunkSize - 1; y >= 0; y--) {
                 for (int x = 0; x < c_chunkSize; x++) {
                     uint8_t type = blocks[x][y].type;
@@ -386,6 +418,7 @@ namespace CA {
                 }
             }
         }
+        
     };
 
     unsigned inline int hash(unsigned int x, unsigned int y) {
@@ -423,62 +456,6 @@ namespace CA {
             DrawTexturePro(texture, sourceRect, destRect, Vector2{0, 0}, 0.0f, WHITE);
         }   
         inline void Update(Cell cells[c_chunkSize][c_chunkSize], std::vector<Tile> &tiles, bool renderLight) {
-           //for (int x = 1; x < c_gridLightSize - 1; x++) {
-           //    for (int y = 1; y < c_gridLightSize - 1; y++) {
-           //        
-           //        if (cells[x][y].type!=0) {
-           //            rNext[x][y] = 0; gNext[x][y] = 0; bNext[x][y] = 0;
-           //            continue;
-           //        }
-
-           //        int radius = 8; 
-           //        int count = 0;
-           //        float sumR = 0, sumG = 0, sumB = 0;
-
-           //        for (int dx = -radius; dx <= radius; dx += radius) {
-           //            for (int dy = -radius; dy <= radius; dy += radius) {
-           //                if (dx == 0 && dy == 0) continue;
-
-           //                int nx = x + dx;
-           //                int ny = y + dy;
-
-           //                if (nx > 0 && nx < c_gridLightSize - 1 && ny > 0 && ny < c_gridLightSize - 1) {
-           //                    count++;
-           //                    if (cells[nx][ny].type != 0) {
-           //                        sumR += r[x][y];
-           //                        sumG += g[x][y];
-           //                        sumB += b[x][y];
-           //                    } else {
-           //                        sumR += r[nx][ny];
-           //                        sumG += g[nx][ny];
-           //                        sumB += b[nx][ny];
-           //                    }
-           //                }
-           //            }
-           //        }
-           //        float avgR = sumR / count;
-           //        float avgG = sumG / count;
-           //        float avgB = sumB / count;
-
-           //        float spreadSpeed = 0.95;
-           //        rNext[x][y] = r[x][y] + (avgR - r[x][y]) * spreadSpeed;
-           //        gNext[x][y] = g[x][y] + (avgG - g[x][y]) * spreadSpeed;
-           //        bNext[x][y] = b[x][y] + (avgB - b[x][y]) * spreadSpeed;
-           //        rNext[x][y] *= 0.995;
-           //        gNext[x][y] *= 0.995;
-           //        bNext[x][y] *= 0.995;
-           //        rNext[x][y] += (rSource[x][y] * 5);
-           //        gNext[x][y] += (gSource[x][y] * 5);
-           //        bNext[x][y] += (bSource[x][y] * 5);
-           //        if (rNext[x][y] > 50.0f) rNext[x][y] = 50.0f;
-           //        if (gNext[x][y] > 50.0f) gNext[x][y] = 50.0f;
-           //        if (bNext[x][y] > 50.0f) bNext[x][y] = 50.0f;
-           //    }
-           //}
-
-          // std::memcpy(r, rNext, sizeof(r));
-          // std::memcpy(g, gNext, sizeof(g));
-          // std::memcpy(b, bNext, sizeof(b));
           Color* pixels = (Color*)image.data;  
           for (int x = 0; x < c_chunkSize; x++) {
                 for (int y = 0; y < c_chunkSize; y++) {
@@ -496,12 +473,11 @@ namespace CA {
                             tileColor.b*=1.05;
                         }
                     }
-                    
-            
-
-                    unsigned char finalR = (unsigned char)((tileColor.r / 255.0f) * r[x/c_lightResolution][y/c_lightResolution]);
-                    unsigned char finalG = (unsigned char)((tileColor.g / 255.0f) * g[x/c_lightResolution][y/c_lightResolution]);
-                    unsigned char finalB = (unsigned char)((tileColor.b / 255.0f) * b[x/c_lightResolution][y/c_lightResolution]);
+                    int dx = x/c_lightResolution;
+                    int dy = y/c_lightResolution;
+                    unsigned char finalR = (unsigned char)((tileColor.r / 255.0f) * (r[dx][dy]+rSource[dx][dy]));
+                    unsigned char finalG = (unsigned char)((tileColor.g / 255.0f) * (g[dx][dy]+gSource[dx][dy]));
+                    unsigned char finalB = (unsigned char)((tileColor.b / 255.0f) * (b[dx][dy]+bSource[dx][dy]));
                             
                     pixels[y*c_chunkSize+x] = {
                         finalR,
@@ -871,7 +847,8 @@ namespace CA {
             int endX = cameraPosition.x+screenSize.x;
             if (endX>chunksX*c_chunkSize) endX = chunksX*c_chunkSize;
             
-            #pragma omp parallel for 
+            #pragma omp parallel for schedule(dynamic, 4)
+
             for (int x = startX; x < endX; x++) {
                 if (toBeUpdatedLine[x]) {
                     if (x%c_lightResolution==0) {

@@ -22,7 +22,7 @@ fluid = false
 gas = false
 leaveBehind = 0
 lifeTime = -1
-lightAbsorb = 85
+lightAbsorb = 96
 mass = 5
 
 stone:

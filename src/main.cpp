@@ -30,15 +30,8 @@ struct Player {
         cameraZoom += wheel * 0.1f;
         
         if (wheel != 0) {
-            Vector2 mousePos = GetMousePosition();
-            Vector2 worldPos = {
-                (mousePos.x / this->cameraZoom) + this->cameraPosition.x,
-                (mousePos.y / this->cameraZoom) + this->cameraPosition.y
-            };
             this->cameraZoom += wheel * 0.1f;
             this->cameraZoom = Clamp(this->cameraZoom, 2, 5.0f);
-            this->cameraPosition.x = worldPos.x - (mousePos.x / this->cameraZoom);
-            this->cameraPosition.y = worldPos.y - (mousePos.y / this->cameraZoom);
         }
         if (this->cameraZoom < 2.0f) this->cameraZoom = 2.0f;
         if (this->cameraZoom > 5.0f) this->cameraZoom = 5.0f;
@@ -53,7 +46,7 @@ struct Player {
         // Calculate world position of player
         float w = GetScreenWidth();
         float h = GetScreenHeight();
-        playerPosition = {cameraPosition.x + w/(2*this->cameraZoom), cameraPosition.y + h/(2*this->cameraZoom)};
+        playerPosition = {cameraPosition.x + w/4, cameraPosition.y + h/4};
         
         // Apply gravity
         yVelocity += gravity;
@@ -100,8 +93,8 @@ struct Player {
                 yVelocity = 0;
             }
         }
-        cameraPosition.x = playerPosition.x - w/(2*this->cameraZoom);
-        cameraPosition.y = playerPosition.y - h/(2*this->cameraZoom);
+        cameraPosition.x = playerPosition.x - w/(4);
+        cameraPosition.y = playerPosition.y - h/(4);
     }
     bool IsBlockSolid(int x, int y, CA::World *world) {
         if (x < 0 || x >= CA::c_screenWidth || y < 0 || y >= CA::c_screenHeight) return false;
@@ -281,12 +274,45 @@ struct Player {
         }
     }
 };
-
+struct LightSource {
+    Vector2 position={0,0};
+    Color lightValue=RED;
+    float strength=0.03;
+    void Draw(CA::World *world) {
+        for (int x = -10; x <= 10; x++) {
+            for (int y = -10; y <= 10;y++) {
+                int fx = (position.x+x)/CA::c_chunkSize;
+                int fy = (position.y+y)/CA::c_chunkSize;
+                int dx = (int(position.x+x)%CA::c_chunkSize)/CA::c_lightResolution;
+                int dy = (int(position.y+y)%CA::c_chunkSize)/CA::c_lightResolution;
+                
+                world->lightMap[{fx,fy}].rSource[dx][dy]+=lightValue.r*strength;
+                world->lightMap[{fx,fy}].gSource[dx][dy]+=lightValue.g*strength;
+                world->lightMap[{fx,fy}].bSource[dx][dy]+=lightValue.b*strength;
+            }
+        }
+    }
+    void UnDraw(CA::World *world) {
+        for (int x = -10; x <= 10; x++) {
+            for (int y = -10; y <= 10;y++) {
+                int fx = (position.x+x)/CA::c_chunkSize;
+                int fy = (position.y+y)/CA::c_chunkSize;
+                int dx = (int(position.x+x)%CA::c_chunkSize)/CA::c_lightResolution;
+                int dy = (int(position.y+y)%CA::c_chunkSize)/CA::c_lightResolution;
+                
+                world->lightMap[{fx,fy}].r[dx][dy]-=lightValue.r*strength;
+                world->lightMap[{fx,fy}].g[dx][dy]-=lightValue.g*strength;
+                world->lightMap[{fx,fy}].b[dx][dy]-=lightValue.b*strength;
+            }
+        }
+    }
+};
 
 class App {
     CA::World world;
     Physics::Map* map;
     Player player;
+    std::vector<LightSource> sources;
     int targetFrames = 120;
     int simulationFrames = 60;
     int stepChange = targetFrames/simulationFrames;
@@ -319,15 +345,6 @@ public:
         
         while (!WindowShouldClose()) {
             frameStart = std::chrono::high_resolution_clock::now();
-                
-                
-                                
-            const Color colors[10] = {
-                { 10, 30, 80, 255 }, { 15, 50, 120, 255 }, { 20, 80, 160, 255 },
-                { 30, 110, 190, 255 }, { 40, 140, 210, 255 }, { 60, 170, 220, 255 },
-                { 80, 200, 230, 255 }, { 100, 220, 240, 255 }, { 140, 240, 250, 255 },
-                { 180, 250, 255, 255 }
-            };
             if (IsMouseButtonDown(2) && frame%2==0) {
                             
                 Physics::ShapeGrid newShape;
@@ -352,7 +369,6 @@ public:
                 newShape.x = (GetMouseX() / player.cameraZoom) + player.cameraPosition.x;
                 newShape.y = (GetMouseY() / player.cameraZoom) + player.cameraPosition.y;
                 newShape.id = (int)map->balls.size();
-                newShape.color = colors[GetRandomValue(0, 4)];
                 newShape.x_vel = (float)GetRandomValue(-3, 3);
                 newShape.y_vel = (float)GetRandomValue(-8, -2);
                 newShape.held = false;
@@ -391,7 +407,13 @@ public:
             }
             physicsEnd = std::chrono::high_resolution_clock::now();
             auto physicsDuration = std::chrono::duration_cast<std::chrono::microseconds>(physicsEnd - physicsStart).count();
-            
+            if (IsKeyPressed(KEY_F)) {
+                LightSource lights; 
+                lights.position = player.playerPosition;
+                lights.Draw(&world);
+                sources.push_back(lights);
+
+            }
             int beginX = (int)(player.cameraPosition.x / CA::c_chunkSize);
             int endX = (int)((player.cameraPosition.x + (GetScreenWidth() / player.cameraZoom)) / CA::c_chunkSize) + 1;
             int beginY = (int)(player.cameraPosition.y / CA::c_chunkSize);
@@ -424,9 +446,6 @@ public:
                         
                     }
                 }
-                for (int i = 0; i < (int)map->balls.size(); i++) {
-                    map->balls[i].Draw(&world);
-                }
             }
             for (int x = beginX; x < endX; x++) {
                 for (int y = beginY; y < endY; y++) {
@@ -438,6 +457,26 @@ public:
             
             lightUpdateStart = std::chrono::high_resolution_clock::now();
             if (frame%3==0) {
+                
+                for (int i = 0; i < (int)map->balls.size(); i++) {
+                    memset(map->balls[i].cleanOut,false,sizeof(map->balls[i].cleanOut));
+                    float cosA = cosf(map->balls[i].rotation);
+                    float sinA = sinf(map->balls[i].rotation);
+                    for (int dy = 0; dy < map->balls[i].height; dy++) {
+                        for (int dx = 0; dx < map->balls[i].width; dx++) {
+                            if (map->balls[i].grid[dx][dy]!=0) {
+                                float rx = dx * cosA - dy * sinA+map->balls[i].x;
+                                float ry = dx * sinA + dy * cosA+map->balls[i].y;
+                                if (world.chunkMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].blocks[(int)rx%CA::c_chunkSize][(int)ry%CA::c_chunkSize].type==0) {
+
+                                    map->balls[i].cleanOut[dx][dy] = true;
+                                    world.chunkMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].blocks[(int)rx%CA::c_chunkSize][(int)ry%CA::c_chunkSize].type = map->balls[i].grid[dx][dy];
+                                    world.toBeUpdatedLine[(int)rx] = true;
+                                }        
+                            }
+                        }
+                    }
+                }
                 for (int x = beginX; x < endX; x++) {
                     for (int y = beginY; y < endY; y++) {
                         if (world.chunkMap[{x,y}].generated && world.lightMap[{x,y}].generated) {
@@ -455,6 +494,23 @@ public:
                     }
                 }
                 world.UpdateLighting(world.materials,player.cameraPosition,{(float)GetScreenWidth(),(float)GetScreenHeight()});
+                
+                for (int i = 0; i < (int)map->balls.size(); i++) {
+                    float cosA = cosf(map->balls[i].rotation);
+                    float sinA = sinf(map->balls[i].rotation);
+                    for (int dy = 0; dy < map->balls[i].height; dy++) {
+                        for (int dx = 0; dx < map->balls[i].width; dx++) {
+                            if (map->balls[i].grid[dx][dy]!=0 && map->balls[i].cleanOut[dx][dy]) {
+                                        
+                                float rx = dx * cosA - dy * sinA+map->balls[i].x;
+                                float ry = dx * sinA + dy * cosA+map->balls[i].y;
+                                world.chunkMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].blocks[(int)rx%CA::c_chunkSize][(int)ry%CA::c_chunkSize].type = 0;
+                                world.toBeUpdatedLine[(int)rx] = true;
+                            }
+                        }
+                    }
+                    map->balls[i].Draw(&world);
+                }
             }
             lightUpdateEnd = std::chrono::high_resolution_clock::now();
             auto lightUpdateDuration = std::chrono::duration_cast<std::chrono::microseconds>(lightUpdateEnd - lightUpdateStart).count();
@@ -524,7 +580,7 @@ public:
                 std::cout << "  Other: " << (frameDuration - physicsDuration - chunkGenDuration - lightUpdateDuration - drawDuration) << " μs" << std::endl;
                 std::cout << "====================================" << std::endl;
             }
-            std::cout << " Object count: " << map->balls.size()<<"\n";
+//            std::cout << " Object count: " << map->balls.size()<<"\n";
             frame++;
             
         }
