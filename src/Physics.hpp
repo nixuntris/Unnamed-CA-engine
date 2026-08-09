@@ -46,7 +46,6 @@ namespace Physics {
         int height;
         float pixelPositions[MAX_PIXELS][2];
         float gridPositions[MAX_PIXELS][2];
-        int pixelsToCoolide[MAX_PIXELS];
         float collisionRadius;
         float pixelSize = 1;
         float mass;
@@ -54,7 +53,6 @@ namespace Physics {
         float momentOfInertia;  
         Texture texture;
         Vector2 ballPixels[MAX_PIXELS];
-        int pushPixel = 0;
         Image image;
         void CalculateAABB() {
             
@@ -93,10 +91,6 @@ namespace Physics {
             float maxDist = 0;
             pivotX = width * pixelSize / 2.0f;
             pivotY = height * pixelSize / 2.0f;
-            pushPixel = 0;
-            for (int i = 0; i < MAX_PIXELS; i++) {
-                pixelsToCoolide[i] = 0;
-            }
             image = GenImageColor(width,height,BLANK);
             
             for (int y = 0; y < height; y++) {
@@ -104,10 +98,6 @@ namespace Physics {
                     if (grid[x][y]!=0) { 
                         float px = x * pixelSize + pixelSize/2 - pivotX;
                         float py = y * pixelSize + pixelSize/2 - pivotY;
-                        if (!(grid[x-1][y]!=0 && x-1>=0 && grid[x+1][y]!=0 && x+1<width && grid[x][y-1]!=0 && y-1>=0 && grid[x][y+1]!=0 && y+1<height)) {
-                            pixelsToCoolide[pushPixel] = pixelCount;
-                            pushPixel++;
-                        };
                         
                         pixelPositions[pixelCount][0] = px;
                         pixelPositions[pixelCount][1] = py;
@@ -271,12 +261,9 @@ namespace Physics {
                             ball.y += normY * separation * ballRatio;
                             other.x -= normX * separation * otherRatio;
                             other.y -= normY * separation * otherRatio;
-                            for (int p = 0; p < ball.pixelCount; p++) {
-                                float rx = ball.pixelPositions[p][0] * cosA - ball.pixelPositions[p][1] * sinA;
-                                float ry = ball.pixelPositions[p][0] * sinA + ball.pixelPositions[p][1] * cosA;
-                                ball.ballPixels[p].x = ball.x + rx;
-                                ball.ballPixels[p].y = ball.y + ry;
-                            }
+                            ball.CalculatePixelRot();
+                            other.CalculatePixelRot();
+                        
                         }
                         if (contactCount > 0) {
                             float contactX = contactSumX / contactCount;
@@ -355,8 +342,7 @@ namespace Physics {
                         int pushCount = 0;
                         float contactSumX = 0.0f, contactSumY = 0.0f;
                         
-                        for (int k = 0; k < ball.pixelCount; k++) {
-                            int p = ball.pixelsToCoolide[k];
+                        for (int p = 0; p < ball.pixelCount; p++) {
                             float dxp = ball.ballPixels[p].x - blockWorldX;
                             float dyp = ball.ballPixels[p].y - blockWorldY;
                             float distSq = dxp*dxp + dyp*dyp;

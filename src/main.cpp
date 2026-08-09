@@ -25,7 +25,24 @@ struct Player {
         cameraPosition = {0,0};
         cameraZoom = 2;
     }
+    
     void Control(CA::World *world) {
+        float wheel = GetMouseWheelMove();
+        cameraZoom += wheel * 0.1f;
+        
+        if (wheel != 0) {
+            this->cameraZoom += wheel * 0.1f;
+            this->cameraZoom = Clamp(this->cameraZoom, 2, 5.0f);
+        }
+        if (this->cameraZoom < 2.0f) this->cameraZoom = 2.0f;
+        if (this->cameraZoom > 5.0f) this->cameraZoom = 5.0f;
+        
+        if (IsKeyDown(KEY_A)) cameraPosition.x -= 5;
+        if (IsKeyDown(KEY_D)) cameraPosition.x += 5;
+        if (IsKeyDown(KEY_W)) cameraPosition.y -= 5;
+        if (IsKeyDown(KEY_S)) cameraPosition.y += 5;
+    }
+    void ControlGameplay(CA::World *world) {
         float wheel = GetMouseWheelMove();
         cameraZoom += wheel * 0.1f;
         
@@ -386,19 +403,17 @@ public:
                 const int subSteps = 4; 
                 for (int s = 0; s < subSteps; s++) {
                     
-                    #pragma parallel for 
-                    for (auto& ball : map->balls) {
-                        if (!ball.held) {
-                            ball.y_vel += 0.5f / subSteps; 
-                            ball.x += ball.x_vel / subSteps;
-                            ball.y += ball.y_vel / subSteps;
-                            ball.rotation += ball.angularVelocity / subSteps;
-                            
+                        for (auto& ball : map->balls) {
+                            if (!ball.held) {
+                                ball.y_vel += 0.5f / subSteps; 
+                                ball.x += ball.x_vel / subSteps;
+                                ball.y += ball.y_vel / subSteps;
+                                ball.rotation += ball.angularVelocity / subSteps;
+                                
+                            }
                         }
-                    }
 
                     M_RecalculateGrid(map);
-                    #pragma parallel for 
                     for (int i = 0; i < (int)map->balls.size(); i++) {
                         map->balls[i].angularVelocity *= 0.98;
                         En_CollisionBall(i, map, &world);
