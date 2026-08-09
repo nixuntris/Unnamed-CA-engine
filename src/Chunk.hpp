@@ -8,7 +8,7 @@
 #include <cstring>
 namespace CA {
     
-    const int c_chunkSize = 64; //Size of each chunk in cells 
+    const int c_chunkSize = 40; //Size of each chunk in cells 
     const int c_sleepTime = 30; //Number of frames a chunk waits before going offline untill woken up by a neighbouring chunk
     const int c_screenWidth = 1920*4; //World width
     const int c_screenHeight = 1080*4; //World height. Both disconnected from what's in the rigid bodies file
@@ -49,7 +49,8 @@ namespace CA {
     struct Chunk {
         bool generated = false;
         Cell blocks[c_chunkSize][c_chunkSize];
-
+        int gx;
+        int gy;
         Cell moveDown[c_chunkSize];
         Cell moveUp[c_chunkSize];
         Cell moveLeft[c_chunkSize];
@@ -314,39 +315,6 @@ namespace CA {
         }
         inline void UpdatePhysics(std::vector<Tile>&tiles) {
             lastUpdate++;
-            /*bool checked[c_chunkSize][c_chunkSize];
-            bool connected[c_chunkSize][c_chunkSize];
-            memset(checked,false,sizeof(checked)); 
-            memset(connected,false,sizeof(checked)); 
-            for (int y = c_chunkSize - 1; y >= 0; y--) {
-                for (int x = 0; x < c_chunkSize; x++) {
-                    if (blocks[x][y].type!=0 && !checked[x][y]) {
-                        if (x-1<0 || x+1>=c_chunkSize || y-1<0 || y+1>=c_chunkSize) {
-                            connected[x][y] = true;
-                            
-                        }
-                        if (connected[x][y]) {
-                            for (int dx = -1; dx <= 1; dx++) {
-                                for (int dy = -1; dy <= 1; dy++) {
-                                    if (dx+x-1<0 || dx+x+1>=c_chunkSize || y+dy-1<0 || y+dy+1>=c_chunkSize) continue;
-                                    connected[dx+x][dy+y] = true;
-
-                                }   
-                            }
-                        }
-                        checked[x][y] = true;
-                    }
-                }
-            }
-            for (int y = c_chunkSize - 1; y >= 0; y--) {
-                for (int x = 0; x < c_chunkSize; x++) {
-                    if (blocks[x][y].type!=0) {
-                        if (!connected[x][y]) {
-                            blocks[x][y].type = 0;
-                        }
-                    }
-                }
-            }*/
             for (int y = c_chunkSize - 1; y >= 0; y--) {
                 for (int x = 0; x < c_chunkSize; x++) {
                     uint8_t type = blocks[x][y].type;
@@ -454,6 +422,7 @@ namespace CA {
                 texture.height * zoom
             };
             DrawTexturePro(texture, sourceRect, destRect, Vector2{0, 0}, 0.0f, WHITE);
+            DrawRectangleLines(destRect.x,destRect.y,destRect.width,destRect.height,BLACK);
         }   
         inline void Update(Cell cells[c_chunkSize][c_chunkSize], std::vector<Tile> &tiles, bool renderLight) {
           Color* pixels = (Color*)image.data;  

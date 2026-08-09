@@ -18,7 +18,7 @@ namespace Physics {
     };
     const int WORLD_WIDTH = CA::c_screenWidth;
     const int WORLD_HEIGHT = CA::c_screenHeight;
-    const int chunkSize = 32; 
+    const int chunkSize = 40; 
     const int MAX_BALL_COUNT_PER_CHUNK = 128;
     const int GRID_W = (WORLD_WIDTH / chunkSize) + 1;
     const int GRID_H = (WORLD_HEIGHT / chunkSize) + 1;
@@ -134,6 +134,7 @@ namespace Physics {
         void Draw(CA::World *world) {
             float cosA = cosf(rotation);
             float sinA = sinf(rotation);
+
             for (int dy = 0; dy < height; dy++) {
                 for (int dx = 0; dx < width; dx++) {
                     if (grid[dx][dy]!=0) {
@@ -147,6 +148,9 @@ namespace Physics {
                         col.b = col.b * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].b[(int(rx)%CA::c_chunkSize)/CA::c_lightResolution][(int(ry)%CA::c_chunkSize)/CA::c_lightResolution])/255.0f;
                         
                         ImageDrawPixel(&image,dx,dy,col);
+                    }
+                    else {
+                        ImageDrawPixel(&image,dx,dy,BLANK);
                     }
                 }
             }

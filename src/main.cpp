@@ -12,7 +12,222 @@
 #include "Terrain.hpp"
 #include "Physics.hpp"
 #include <chrono>
+#include <queue>
+#include <unordered_set>
+
 const bool renderLight = true;
+inline bool CheckBlock(CA::World *world ,int x, int y) {
+    if (x<0 || x>CA::c_screenWidth || y<0 || y>CA::c_screenHeight) return true;
+    return world->chunkMap[{x/CA::c_chunkSize,y/CA::c_chunkSize}].blocks[x%CA::c_chunkSize][y%CA::c_chunkSize].type!=0;
+}
+inline void SetBlock(CA::World *world ,int x, int y, uint8_t type) {
+    if (x<0 || x>CA::c_screenWidth || y<0 || y>CA::c_screenHeight) return;
+    world->chunkMap[{x/CA::c_chunkSize,y/CA::c_chunkSize}].blocks[x%CA::c_chunkSize][y%CA::c_chunkSize].type=type;
+}
+inline int  GetBlock(CA::World *world ,int x, int y) {
+    if (x<0 || x>CA::c_screenWidth || y<0 || y>CA::c_screenHeight) return 0;
+    return world->chunkMap[{x/CA::c_chunkSize,y/CA::c_chunkSize}].blocks[x%CA::c_chunkSize][y%CA::c_chunkSize].type;
+}
+bool canReachEdge(CA::World* world, int startX, int startY) {
+    const int MAX_STEPS = 64;
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
+    
+    std::queue<std::pair<int, int>> toVisit;
+    std::unordered_set<int> visited;
+    
+    toVisit.push({startX, startY});
+    visited.insert(startY * CA::c_screenWidth + startX);
+    
+    int steps = 0;
+    
+    while (!toVisit.empty() && steps < MAX_STEPS) {
+        auto [cx, cy] = toVisit.front();
+        toVisit.pop();
+        steps++;
+        
+        if (cx <= 0 || cx >= CA::c_screenWidth - 1 || 
+            cy <= 0 || cy >= CA::c_screenHeight - 1) {
+            return true; 
+        }
+        
+        for (int i = 0; i < 4; i++) {
+            int nx = cx + dx[i];
+            int ny = cy + dy[i];
+            
+            if (nx >= 0 && nx < CA::c_screenWidth && 
+                ny >= 0 && ny < CA::c_screenHeight) {
+                
+                int key = ny * CA::c_screenWidth + nx;
+                if (visited.find(key) == visited.end() && CheckBlock(world, nx, ny)) {
+                    visited.insert(key);
+                    toVisit.push({nx, ny});
+                }
+            }
+        }
+    }
+    
+    return steps >= MAX_STEPS || visited.size() > 100;
+}
+bool wouldSplitStructure(CA::World* world, int x, int y, Physics::Map* map) {
+    if (CheckBlock(world,x+1,y) && x+1<CA::c_screenWidth) {
+        if (!canReachEdge(world,x+1,y)) {
+            // Create a rigid body from the 8x8 area instead of setting blocks
+            Physics::ShapeGrid newShape;
+            float pixelSize = 1;
+            newShape.width = 8;
+            newShape.height = 8;
+            newShape.pixelSize = pixelSize;
+            newShape.rotation = 0;
+            newShape.angularVelocity = 0;
+            newShape.mass = 1.0f;
+            newShape.restitution = 0.8f;
+            memset(newShape.grid, 0, sizeof(newShape.grid));
+            bool hasObjects = false;
+            for (int dy = 0; dy < 8; dy++) {
+                for (int dx = 0; dx < 8; dx++) {
+                    newShape.grid[dy][dx] = 0;
+                    if (CheckBlock(world, dx+x+1, dy+y)) {
+                        newShape.grid[dy][dx] = GetBlock(world,dx+x+1,dy+y);
+                        SetBlock(world, dx+x+1, dy+y, 0);
+                        hasObjects = true;
+                    }
+                }
+            }
+            
+            newShape.CalculatePixels(world->materials);
+            newShape.x = x + 1 + 4; // Center of the 8x8 area
+            newShape.y = y + 4;
+            newShape.id = (int)map->balls.size(); // You'll need access to map
+            newShape.x_vel = (float)GetRandomValue(-2, 2);
+            newShape.y_vel = (float)GetRandomValue(-5, -1);
+            newShape.held = false;
+            newShape.ownedByObject = false;
+            newShape.mass = newShape.pixelCount * 0.1f;
+            if (hasObjects) map->balls.push_back(newShape);
+        }
+    }
+    
+    if (CheckBlock(world,x,y+1) && y+1<CA::c_screenHeight) {
+        if (!canReachEdge(world,x,y+1)) {
+            bool hasObjects = false;
+            Physics::ShapeGrid newShape;
+            float pixelSize = 1;
+            newShape.width = 8;
+            newShape.height = 8;
+            newShape.pixelSize = pixelSize;
+            newShape.rotation = 0;
+            newShape.angularVelocity = 0;
+            newShape.mass = 1.0f;
+            newShape.restitution = 0.8f;
+            memset(newShape.grid, 0, sizeof(newShape.grid));
+            
+            for (int dy = 0; dy < 8; dy++) {
+                for (int dx = 0; dx < 8; dx++) {
+                    newShape.grid[dy][dx] = 0;
+                    if (CheckBlock(world, dx+x, dy+y+1)) {
+                        newShape.grid[dy][dx] = GetBlock(world, dx+x, dy+y+1);
+                        SetBlock(world, dx+x, dy+y+1, 0);
+                        hasObjects = true;
+                    }
+                }
+            }
+            
+            newShape.CalculatePixels(world->materials);
+            newShape.x = x + 4;
+            newShape.y = y + 1 + 4;
+            newShape.id = (int)map->balls.size();
+            newShape.x_vel = (float)GetRandomValue(-2, 2);
+            newShape.y_vel = (float)GetRandomValue(-5, -1);
+            newShape.held = false;
+            newShape.ownedByObject = false;
+            newShape.mass = newShape.pixelCount * 0.1f;
+            
+           if (hasObjects) map->balls.push_back(newShape);
+        }
+    }
+    
+    if (CheckBlock(world,x-1,y) && x-1>=0) {
+        if (!canReachEdge(world,x-1,y)) {
+           bool hasObjects = false;
+             Physics::ShapeGrid newShape;
+            float pixelSize = 1;
+            newShape.width = 8;
+            newShape.height = 8;
+            newShape.pixelSize = pixelSize;
+            newShape.rotation = 0;
+            newShape.angularVelocity = 0;
+            newShape.mass = 1.0f;
+            newShape.restitution = 0.8f;
+            memset(newShape.grid, 0, sizeof(newShape.grid));
+            
+            for (int dy = 0; dy < 8; dy++) {
+                for (int dx = 0; dx < 8; dx++) {
+                    newShape.grid[dy][dx] = 0;
+                    if (CheckBlock(world, dx+x-1, dy+y)) {
+                        newShape.grid[dy][dx] = GetBlock(world, dx+x-1, dy+y);
+                        SetBlock(world, dx+x-1, dy+y, 0);
+                        hasObjects = true;
+                    }
+                }
+            }
+            
+            newShape.CalculatePixels(world->materials);
+            newShape.x = x - 1 + 4;
+            newShape.y = y + 4;
+            newShape.id = (int)map->balls.size();
+            newShape.x_vel = (float)GetRandomValue(-2, 2);
+            newShape.y_vel = (float)GetRandomValue(-5, -1);
+            newShape.held = false;
+            newShape.ownedByObject = false;
+            newShape.mass = newShape.pixelCount * 0.1f;
+            
+            if (hasObjects)map->balls.push_back(newShape);
+        }
+    }
+    
+    if (CheckBlock(world,x,y-1) && y-1>=0) {
+        if (!canReachEdge(world,x,y-1)) {
+            bool hasObjects = false;
+            Physics::ShapeGrid newShape;
+            float pixelSize = 1;
+            newShape.width = 8;
+            newShape.height = 8;
+            newShape.pixelSize = pixelSize;
+            newShape.rotation = 0;
+            newShape.angularVelocity = 0;
+            newShape.mass = 1.0f;
+            newShape.restitution = 0.8f;
+            memset(newShape.grid, 0, sizeof(newShape.grid));
+            
+            for (int dy = 0; dy < 8; dy++) {
+                for (int dx = 0; dx < 8; dx++) {
+                    newShape.grid[dy][dx] = 0;
+                    if (CheckBlock(world, dx+x, dy+y-1)) {
+                        newShape.grid[dy][dx] = GetBlock(world, dx+x, dy+y-1);
+                        SetBlock(world, dx+x, dy+y-1, 0);
+                        hasObjects = true;
+                    }
+                }
+            }
+            
+            newShape.CalculatePixels(world->materials);
+            newShape.x = x + 4;
+            newShape.y = y - 1 + 4;
+            newShape.id = (int)map->balls.size();
+            newShape.x_vel = (float)GetRandomValue(-2, 2);
+            newShape.y_vel = (float)GetRandomValue(-5, -1);
+            newShape.held = false;
+            newShape.ownedByObject = false;
+            newShape.mass = newShape.pixelCount * 0.1f;
+            
+            if (hasObjects)map->balls.push_back(newShape);
+        }
+    }
+    
+    return true;
+}
+
 struct Player {
     Vector2 playerPosition;
     Vector2 cameraPosition;
@@ -189,7 +404,7 @@ struct Player {
             RED
         );
     }
-    void Editor(CA::World *world) {
+    void Editor(CA::World *world,Physics::Map* map) {
         bool hover = false;
         std::string hoveredOver = "";
         
@@ -265,6 +480,7 @@ struct Player {
             }
         }
         else if (IsMouseButtonDown(1) && !hover) {
+            std::vector<Vector2> checkBlocks;
             for (int x = 0; x < editSize; x++) {
                 for (int y = 0; y < editSize; y++) {
                     int updateX = x + worldMousePos.x;
@@ -276,11 +492,25 @@ struct Player {
                         int chunkX = updateX / CA::c_chunkSize;
                         int chunkY = updateY / CA::c_chunkSize;
                         if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
-
+                        if (world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type!=0) {
+                            checkBlocks.push_back({(float)updateX,(float)updateY});
+                        
+                        }
                         world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = 0;
                         world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
                         world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
+                        
+                                                
                     }
+                }
+            }
+            for (auto t : checkBlocks) {
+                
+                bool wouldSplit = wouldSplitStructure(world, t.x, t.y, map);
+                        
+                if (!wouldSplit) {
+                            
+                    std::cout<<"yeah, split\n"; 
                 }
             }
         }
@@ -541,7 +771,7 @@ public:
             );
             
             player.Control(&world);
-            player.Editor(&world);
+            player.Editor(&world,map);
             
             if (IsKeyDown(KEY_G)) {
                 world.SaveWorld();

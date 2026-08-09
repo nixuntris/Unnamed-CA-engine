@@ -144,6 +144,9 @@ CA::Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
     
     Image heightMap = GenImagePerlinNoise(CA::c_chunkSize, 1, 
                                           cx,0, 0.02f);
+    chunk.gx = cx/CA::c_chunkSize;
+    chunk.gy = cy/CA::c_chunkSize;
+    
     for (int x = 0; x < CA::c_chunkSize; x++) {
         int worldX = cx + x;
         float heightNoise = GetImageColor(heightMap, x, 0).r / 255.0f;
