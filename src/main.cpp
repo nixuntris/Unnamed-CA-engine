@@ -28,55 +28,62 @@ inline int  GetBlock(CA::World *world ,int x, int y) {
     if (x<0 || x>CA::c_screenWidth || y<0 || y>CA::c_screenHeight) return 0;
     return world->chunkMap[{x/CA::c_chunkSize,y/CA::c_chunkSize}].blocks[x%CA::c_chunkSize][y%CA::c_chunkSize].type;
 }
-bool canReachEdge(CA::World* world, int startX, int startY) {
-    const int MAX_STEPS = 64;
-    const int dx[] = {1, -1, 0, 0};
-    const int dy[] = {0, 0, 1, -1};
-    
-    std::queue<std::pair<int, int>> toVisit;
+class FrameBFS {
+    bool first = true;
     std::unordered_set<int> visited;
-    
-    toVisit.push({startX, startY});
-    visited.insert(startY * CA::c_screenWidth + startX);
-    
-    int steps = 0;
-    
-    while (!toVisit.empty() && steps < MAX_STEPS) {
-        auto [cx, cy] = toVisit.front();
-        toVisit.pop();
-        steps++;
+        public:
+    bool canReachEdge(CA::World* world, int startX, int startY) {
+        const int MAX_STEPS = 257;
+        const int dx[] = {1, -1, 0, 0};
+        const int dy[] = {0, 0, 1, -1};
         
-        if (cx <= 0 || cx >= CA::c_screenWidth - 1 || 
-            cy <= 0 || cy >= CA::c_screenHeight - 1) {
-            return true; 
+        std::queue<std::pair<int, int>> toVisit;
+        
+        toVisit.push({startX, startY});
+        if (first) {
+            visited.insert(startY * CA::c_screenWidth + startX);
         }
+        first = false;
         
-        for (int i = 0; i < 4; i++) {
-            int nx = cx + dx[i];
-            int ny = cy + dy[i];
+        int steps = 0;
+        
+        while (!toVisit.empty() && steps < MAX_STEPS) {
+            auto [cx, cy] = toVisit.front();
+            toVisit.pop();
+            steps++;
             
-            if (nx >= 0 && nx < CA::c_screenWidth && 
-                ny >= 0 && ny < CA::c_screenHeight) {
+            if (cx <= 0 || cx >= CA::c_screenWidth - 1 || 
+                cy <= 0 || cy >= CA::c_screenHeight - 1) {
+                return true; 
+            }
+            
+            for (int i = 0; i < 4; i++) {
+                int nx = cx + dx[i];
+                int ny = cy + dy[i];
                 
-                int key = ny * CA::c_screenWidth + nx;
-                if (visited.find(key) == visited.end() && CheckBlock(world, nx, ny)) {
-                    visited.insert(key);
-                    toVisit.push({nx, ny});
+                if (nx >= 0 && nx < CA::c_screenWidth && 
+                    ny >= 0 && ny < CA::c_screenHeight) {
+                    
+                    int key = ny * CA::c_screenWidth + nx;
+                    if (visited.find(key) == visited.end() && CheckBlock(world, nx, ny)) {
+                        visited.insert(key);
+                        toVisit.push({nx, ny});
+                    }
                 }
             }
         }
+        
+        return steps >= MAX_STEPS || visited.size() > 100;
     }
-    
-    return steps >= MAX_STEPS || visited.size() > 100;
-}
-bool wouldSplitStructure(CA::World* world, int x, int y, Physics::Map* map) {
+};
+
+bool wouldSplitStructure(CA::World* world, int x, int y, Physics::Map* map, FrameBFS *bfs) {
+    bool wouldSplit = false;
     if (CheckBlock(world,x+1,y) && x+1<CA::c_screenWidth) {
-        if (!canReachEdge(world,x+1,y)) {
+        if (!bfs->canReachEdge(world,x+1,y)) {
             // Create a rigid body from the 8x8 area instead of setting blocks
             Physics::ShapeGrid newShape;
             float pixelSize = 1;
-            newShape.width = 8;
-            newShape.height = 8;
             newShape.pixelSize = pixelSize;
             newShape.rotation = 0;
             newShape.angularVelocity = 0;
@@ -84,76 +91,93 @@ bool wouldSplitStructure(CA::World* world, int x, int y, Physics::Map* map) {
             newShape.restitution = 0.8f;
             memset(newShape.grid, 0, sizeof(newShape.grid));
             bool hasObjects = false;
-            for (int dy = 0; dy < 8; dy++) {
-                for (int dx = 0; dx < 8; dx++) {
+            int maxX = 0;
+            int maxY = 0;
+            for (int dy = 0; dy < Physics::MAX_SHAPE_SIZE; dy++) {
+                for (int dx = 0; dx < Physics::MAX_SHAPE_SIZE; dx++) {
                     newShape.grid[dy][dx] = 0;
-                    if (CheckBlock(world, dx+x+1, dy+y)) {
-                        newShape.grid[dy][dx] = GetBlock(world,dx+x+1,dy+y);
-                        SetBlock(world, dx+x+1, dy+y, 0);
+                    if (CheckBlock(world, dx+x+1-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2)) {
+                        newShape.grid[dy][dx] = GetBlock(world,dx+x+1,dy+y-Physics::MAX_SHAPE_SIZE/2);
+                        SetBlock(world, dx+x+1-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2, 0);
                         hasObjects = true;
+                        if (dx>maxX) maxX = dx;
+                        if (dy>maxY) maxY = dy;
+                        
                     }
                 }
             }
+            newShape.width = maxX;
+            newShape.height = maxY;
             
             newShape.CalculatePixels(world->materials);
-            newShape.x = x + 1 + 4; // Center of the 8x8 area
-            newShape.y = y + 4;
+            newShape.x = x+maxX/2;
+            newShape.y = y+maxY/2;
             newShape.id = (int)map->balls.size(); // You'll need access to map
             newShape.x_vel = (float)GetRandomValue(-2, 2);
             newShape.y_vel = (float)GetRandomValue(-5, -1);
             newShape.held = false;
             newShape.ownedByObject = false;
             newShape.mass = newShape.pixelCount * 0.1f;
-            if (hasObjects) map->balls.push_back(newShape);
+            if (hasObjects) {
+                wouldSplit = true;
+                map->balls.push_back(newShape);
+            }
         }
     }
     
     if (CheckBlock(world,x,y+1) && y+1<CA::c_screenHeight) {
-        if (!canReachEdge(world,x,y+1)) {
+        if (!bfs->canReachEdge(world,x,y+1)) {
             bool hasObjects = false;
             Physics::ShapeGrid newShape;
             float pixelSize = 1;
-            newShape.width = 8;
-            newShape.height = 8;
             newShape.pixelSize = pixelSize;
             newShape.rotation = 0;
             newShape.angularVelocity = 0;
             newShape.mass = 1.0f;
             newShape.restitution = 0.8f;
+            int maxX = 0;
+            int maxY = 0;
             memset(newShape.grid, 0, sizeof(newShape.grid));
             
-            for (int dy = 0; dy < 8; dy++) {
-                for (int dx = 0; dx < 8; dx++) {
+            for (int dy = 0; dy < Physics::MAX_SHAPE_SIZE; dy++) {
+                for (int dx = 0; dx < Physics::MAX_SHAPE_SIZE; dx++) {
                     newShape.grid[dy][dx] = 0;
-                    if (CheckBlock(world, dx+x, dy+y+1)) {
-                        newShape.grid[dy][dx] = GetBlock(world, dx+x, dy+y+1);
-                        SetBlock(world, dx+x, dy+y+1, 0);
+                    if (CheckBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y+1-Physics::MAX_SHAPE_SIZE/2)) {
+                        newShape.grid[dy][dx] = GetBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y+1-Physics::MAX_SHAPE_SIZE/2);
+                        SetBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y+1-Physics::MAX_SHAPE_SIZE/2, 0);
                         hasObjects = true;
+                        if (dx>maxX) maxX = dx;
+                        if (dy>maxY) maxY = dy;
                     }
                 }
             }
             
+            newShape.width = maxX;
+            newShape.height = maxY;
             newShape.CalculatePixels(world->materials);
-            newShape.x = x + 4;
-            newShape.y = y + 1 + 4;
-            newShape.id = (int)map->balls.size();
+             newShape.x = x+maxX/2;
+            newShape.y = y+maxY/2;
+           newShape.id = (int)map->balls.size();
             newShape.x_vel = (float)GetRandomValue(-2, 2);
             newShape.y_vel = (float)GetRandomValue(-5, -1);
             newShape.held = false;
             newShape.ownedByObject = false;
             newShape.mass = newShape.pixelCount * 0.1f;
             
-           if (hasObjects) map->balls.push_back(newShape);
+            if (hasObjects) {
+                wouldSplit = true;
+                map->balls.push_back(newShape);
+            }
         }
     }
     
     if (CheckBlock(world,x-1,y) && x-1>=0) {
-        if (!canReachEdge(world,x-1,y)) {
+        if (!bfs->canReachEdge(world,x-1,y)) {
            bool hasObjects = false;
              Physics::ShapeGrid newShape;
             float pixelSize = 1;
-            newShape.width = 8;
-            newShape.height = 8;
+            int maxX = 0;
+            int maxY = 0;
             newShape.pixelSize = pixelSize;
             newShape.rotation = 0;
             newShape.angularVelocity = 0;
@@ -161,20 +185,24 @@ bool wouldSplitStructure(CA::World* world, int x, int y, Physics::Map* map) {
             newShape.restitution = 0.8f;
             memset(newShape.grid, 0, sizeof(newShape.grid));
             
-            for (int dy = 0; dy < 8; dy++) {
-                for (int dx = 0; dx < 8; dx++) {
+            for (int dy = 0; dy < Physics::MAX_SHAPE_SIZE; dy++) {
+                for (int dx = 0; dx < Physics::MAX_SHAPE_SIZE; dx++) {
                     newShape.grid[dy][dx] = 0;
-                    if (CheckBlock(world, dx+x-1, dy+y)) {
-                        newShape.grid[dy][dx] = GetBlock(world, dx+x-1, dy+y);
-                        SetBlock(world, dx+x-1, dy+y, 0);
+                    if (CheckBlock(world, dx+x-1-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2)) {
+                        newShape.grid[dy][dx] = GetBlock(world, dx+x-1-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2);
+                        SetBlock(world, dx+x-1-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2, 0);
                         hasObjects = true;
+                        if (dx>maxX) maxX = dx;
+                        if (dy>maxY) maxY = dy;
                     }
                 }
             }
             
+            newShape.width = maxX;
+            newShape.height = maxY;
             newShape.CalculatePixels(world->materials);
-            newShape.x = x - 1 + 4;
-            newShape.y = y + 4;
+            newShape.x = x+maxX/2;
+            newShape.y = y+maxY/2;
             newShape.id = (int)map->balls.size();
             newShape.x_vel = (float)GetRandomValue(-2, 2);
             newShape.y_vel = (float)GetRandomValue(-5, -1);
@@ -182,17 +210,20 @@ bool wouldSplitStructure(CA::World* world, int x, int y, Physics::Map* map) {
             newShape.ownedByObject = false;
             newShape.mass = newShape.pixelCount * 0.1f;
             
-            if (hasObjects)map->balls.push_back(newShape);
+            if (hasObjects) {
+                wouldSplit = true;
+                map->balls.push_back(newShape);
+            }
         }
     }
     
     if (CheckBlock(world,x,y-1) && y-1>=0) {
-        if (!canReachEdge(world,x,y-1)) {
+        if (!bfs->canReachEdge(world,x,y-1)) {
             bool hasObjects = false;
             Physics::ShapeGrid newShape;
             float pixelSize = 1;
-            newShape.width = 8;
-            newShape.height = 8;
+            int maxX = 0;
+            int maxY = 0;
             newShape.pixelSize = pixelSize;
             newShape.rotation = 0;
             newShape.angularVelocity = 0;
@@ -200,20 +231,24 @@ bool wouldSplitStructure(CA::World* world, int x, int y, Physics::Map* map) {
             newShape.restitution = 0.8f;
             memset(newShape.grid, 0, sizeof(newShape.grid));
             
-            for (int dy = 0; dy < 8; dy++) {
-                for (int dx = 0; dx < 8; dx++) {
+            for (int dy = 0; dy < Physics::MAX_SHAPE_SIZE; dy++) {
+                for (int dx = 0; dx < Physics::MAX_SHAPE_SIZE; dx++) {
                     newShape.grid[dy][dx] = 0;
-                    if (CheckBlock(world, dx+x, dy+y-1)) {
-                        newShape.grid[dy][dx] = GetBlock(world, dx+x, dy+y-1);
-                        SetBlock(world, dx+x, dy+y-1, 0);
+                    if (CheckBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y-1-Physics::MAX_SHAPE_SIZE/2)) {
+                        newShape.grid[dy][dx] = GetBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y-1-Physics::MAX_SHAPE_SIZE/2);
+                        SetBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y-1-Physics::MAX_SHAPE_SIZE/2, 0);
                         hasObjects = true;
+                        if (dx>maxX) maxX = dx;
+                        if (dy>maxY) maxY = dy;
                     }
                 }
             }
             
+            newShape.width = maxX;
+            newShape.height = maxY;
             newShape.CalculatePixels(world->materials);
-            newShape.x = x + 4;
-            newShape.y = y - 1 + 4;
+            newShape.x = x+maxX/2;
+            newShape.y = y+maxY/2;
             newShape.id = (int)map->balls.size();
             newShape.x_vel = (float)GetRandomValue(-2, 2);
             newShape.y_vel = (float)GetRandomValue(-5, -1);
@@ -221,11 +256,14 @@ bool wouldSplitStructure(CA::World* world, int x, int y, Physics::Map* map) {
             newShape.ownedByObject = false;
             newShape.mass = newShape.pixelCount * 0.1f;
             
-            if (hasObjects)map->balls.push_back(newShape);
+            if (hasObjects) {
+                wouldSplit = true;
+                map->balls.push_back(newShape);
+            }
         }
     }
     
-    return true;
+    return wouldSplit;
 }
 
 struct Player {
@@ -504,12 +542,20 @@ struct Player {
                     }
                 }
             }
+            FrameBFS bfs;
             for (auto t : checkBlocks) {
                 
-                bool wouldSplit = wouldSplitStructure(world, t.x, t.y, map);
-                        
-                if (!wouldSplit) {
-                            
+                bool wouldSplit = wouldSplitStructure(world, t.x, t.y, map,&bfs);
+                
+                if (wouldSplit) {
+                    for (int x = -32; x < 32; x++) {
+                        for (int y = -32; y < 32; y++) {
+                            if (CheckBlock(world,x+t.x,y+t.y)) {
+                                wouldSplitStructure(world, t.x+x, t.y+y, map,&bfs);
+                                
+                            }
+                        }   
+                    }        
                     std::cout<<"yeah, split\n"; 
                 }
             }
@@ -592,38 +638,6 @@ public:
         
         while (!WindowShouldClose()) {
             frameStart = std::chrono::high_resolution_clock::now();
-            if (IsMouseButtonDown(2) && frame%2==0) {
-                            
-                Physics::ShapeGrid newShape;
-                float pixelSize = 1;
-                int val = GetRandomValue(0,2);
-                newShape.width = 8;
-                newShape.height = 8;
-                newShape.pixelSize = pixelSize;
-                newShape.rotation = 0;
-                newShape.angularVelocity = 0;
-                newShape.mass = 1.0f;
-                newShape.restitution = 0.8f;
-                memset(newShape.grid, 0, sizeof(newShape.grid));
-                
-                for (int y = 0; y < 8; y++) {
-                    for (int x = 0; x < 8; x++) {
-                        newShape.grid[y][x] = 1;
-                    }
-                }
-                
-                newShape.CalculatePixels(world.materials);      
-                newShape.x = (GetMouseX() / player.cameraZoom) + player.cameraPosition.x;
-                newShape.y = (GetMouseY() / player.cameraZoom) + player.cameraPosition.y;
-                newShape.id = (int)map->balls.size();
-                newShape.x_vel = (float)GetRandomValue(-3, 3);
-                newShape.y_vel = (float)GetRandomValue(-8, -2);
-                newShape.held = false;
-                newShape.ownedByObject = false;
-                newShape.mass = newShape.pixelCount * 0.1f;
-                
-                map->balls.push_back(newShape);
-            }
             BeginDrawing();
             ClearBackground(SKYBLUE);
             physicsStart = std::chrono::high_resolution_clock::now();

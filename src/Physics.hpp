@@ -23,7 +23,7 @@ namespace Physics {
     const int GRID_W = (WORLD_WIDTH / chunkSize) + 1;
     const int GRID_H = (WORLD_HEIGHT / chunkSize) + 1;
 
-    const int MAX_SHAPE_SIZE = 16;
+    const int MAX_SHAPE_SIZE = 8;
     const int MAX_PIXELS = MAX_SHAPE_SIZE*MAX_SHAPE_SIZE;
     
     struct ShapeGrid {
@@ -126,7 +126,7 @@ namespace Physics {
             }
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    if (grid[y][x] != 0) ImageDrawPixel(&image,x,y,tiles[grid[x][y]].color);
+                    if (grid[x][y] != 0) ImageDrawPixel(&image,x,y,tiles[grid[x][y]].color);
                 }
             }
             texture = LoadTextureFromImage(image);
