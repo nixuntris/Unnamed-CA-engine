@@ -51,11 +51,16 @@ namespace CA {
         Cell blocks[c_chunkSize][c_chunkSize];
         int gx;
         int gy;
+        int cellCount=0;
         Cell moveDown[c_chunkSize];
         Cell moveUp[c_chunkSize];
         Cell moveLeft[c_chunkSize];
         Cell moveRight[c_chunkSize];
-
+        bool onTheLeftEdge;
+        bool onTheRighEdge;
+        bool onTheBottomEdge;
+        bool onTheUpEdge;
+        
         Cell topChunkDataCopy[c_chunkSize]; //Y+ Copy
         Cell bottomChunkDataCopy[c_chunkSize]; //Y- Copy
         Cell leftChunkDataCopy[c_chunkSize]; //X- copy
@@ -314,12 +319,26 @@ namespace CA {
                 checkPosition(x + 1, y);   // RIGHT
         }
         inline void UpdatePhysics(std::vector<Tile>&tiles) {
+            containsData = false;
             lastUpdate++;
+            onTheBottomEdge = false;
+            onTheUpEdge = false;
+            onTheLeftEdge = false;
+            onTheRighEdge = false;
             for (int y = c_chunkSize - 1; y >= 0; y--) {
                 for (int x = 0; x < c_chunkSize; x++) {
                     uint8_t type = blocks[x][y].type;
                     if (blocks[x][y].updated || type == 0)
                         continue;
+                    if (type!=0) {
+                        cellCount++;
+                        containsData = true;
+                        if (x==c_chunkSize-1) onTheRighEdge = true;
+                        if (x==0) onTheLeftEdge = true;
+                        if (y==0) onTheUpEdge = true;
+                        if (y==c_chunkSize-1) onTheBottomEdge = true;
+                        
+                    }
                     if (tiles[type].lifeTime!=-1) {
                         if (blocks[x][y].lifeTime<=0) {
                                 
@@ -615,15 +634,17 @@ namespace CA {
                         
                         if (screenX + size > 0 && screenX < c_screenWidth &&
                             screenY + size > 0 && screenY < c_screenHeight) {
+                            if (chunkMap[{x,y}].containsData) {
+                               DrawRectangleLines(screenX, screenY, size, size, BLACK);
+                                
+                                int fontSize = (int)(16 * zoom);
+                                if (fontSize < 8) fontSize = 8;
+                                if (fontSize > 32) fontSize = 32;
+                                
+                                DrawText(TextFormat("%d", chunkMap[{x,y}].lastUpdate),
+                                        screenX, screenY, fontSize, BLACK);
+                            }
                             
-                            DrawRectangleLines(screenX, screenY, size, size, BLACK);
-                            
-                            int fontSize = (int)(16 * zoom);
-                            if (fontSize < 8) fontSize = 8;
-                            if (fontSize > 32) fontSize = 32;
-                            
-                            DrawText(TextFormat("%d", chunkMap[{x,y}].lastUpdate),
-                                    screenX, screenY, fontSize, BLACK);
                         }
                     }
                 }
@@ -638,13 +659,14 @@ namespace CA {
             if (endX>chunksX*c_chunkSize) endX = chunksX*c_chunkSize;
             int endY = cameraPosition.y+screenSize.y+800;
             if (endY>chunksY*c_chunkSize) endY = chunksY*c_chunkSize;
+            
             #pragma omp parallel for collapse(2)
             for (int x = startX/c_chunkSize; x < endX/c_chunkSize; x++) {
                 for (int y = startY/c_chunkSize; y < endY/c_chunkSize; y++) {
                     if (!chunkMap[{x,y}].generated) {
                         continue;
                     }
-                    if (chunkMap[{x,y}].containsData && chunkMap[{x,y}].lastUpdate<c_sleepTime && chunkMap[{x,y}].generated) {
+                    if (chunkMap[{x,y}].lastUpdate<c_sleepTime && chunkMap[{x,y}].generated) {
                         
                         for (int dx = 0; dx < c_chunkSize; dx++)
                             for (int dy = 0; dy < c_chunkSize; dy++)
@@ -777,7 +799,7 @@ namespace CA {
                 int fx = (x%c_chunkSize)/c_lightResolution;
                 int fy = (y%c_chunkSize)/c_lightResolution;
                 auto& chunk = lightMap[{dx,dy}];
-                if (!chunkMap[{dx,dy}].containsData) y+= c_chunkSize;
+                //if (chunkMap[{dx,dy}].containsData) y+= c_chunkSize;
                 if (chunkMap[{dx,dy}].generated) {
 
                     chunk.r[fx][fy] = WHITE.r*lightStrength;

@@ -14,257 +14,9 @@
 #include <chrono>
 #include <queue>
 #include <unordered_set>
-
+#include "BFS.hpp"
 const bool renderLight = true;
-inline bool CheckBlock(CA::World *world ,int x, int y) {
-    if (x<0 || x>CA::c_screenWidth || y<0 || y>CA::c_screenHeight) return true;
-    return world->chunkMap[{x/CA::c_chunkSize,y/CA::c_chunkSize}].blocks[x%CA::c_chunkSize][y%CA::c_chunkSize].type!=0;
-}
-inline void SetBlock(CA::World *world ,int x, int y, uint8_t type) {
-    if (x<0 || x>CA::c_screenWidth || y<0 || y>CA::c_screenHeight) return;
-    world->chunkMap[{x/CA::c_chunkSize,y/CA::c_chunkSize}].blocks[x%CA::c_chunkSize][y%CA::c_chunkSize].type=type;
-}
-inline int  GetBlock(CA::World *world ,int x, int y) {
-    if (x<0 || x>CA::c_screenWidth || y<0 || y>CA::c_screenHeight) return 0;
-    return world->chunkMap[{x/CA::c_chunkSize,y/CA::c_chunkSize}].blocks[x%CA::c_chunkSize][y%CA::c_chunkSize].type;
-}
-class FrameBFS {
-    bool first = true;
-    std::unordered_set<int> visited;
-        public:
-    bool canReachEdge(CA::World* world, int startX, int startY) {
-        const int MAX_STEPS = 257;
-        const int dx[] = {1, -1, 0, 0};
-        const int dy[] = {0, 0, 1, -1};
-        
-        std::queue<std::pair<int, int>> toVisit;
-        
-        toVisit.push({startX, startY});
-        if (first) {
-            visited.insert(startY * CA::c_screenWidth + startX);
-        }
-        first = false;
-        
-        int steps = 0;
-        
-        while (!toVisit.empty() && steps < MAX_STEPS) {
-            auto [cx, cy] = toVisit.front();
-            toVisit.pop();
-            steps++;
-            
-            if (cx <= 0 || cx >= CA::c_screenWidth - 1 || 
-                cy <= 0 || cy >= CA::c_screenHeight - 1) {
-                return true; 
-            }
-            
-            for (int i = 0; i < 4; i++) {
-                int nx = cx + dx[i];
-                int ny = cy + dy[i];
-                
-                if (nx >= 0 && nx < CA::c_screenWidth && 
-                    ny >= 0 && ny < CA::c_screenHeight) {
-                    
-                    int key = ny * CA::c_screenWidth + nx;
-                    if (visited.find(key) == visited.end() && CheckBlock(world, nx, ny)) {
-                        visited.insert(key);
-                        toVisit.push({nx, ny});
-                    }
-                }
-            }
-        }
-        
-        return steps >= MAX_STEPS || visited.size() > 100;
-    }
-};
 
-bool wouldSplitStructure(CA::World* world, int x, int y, Physics::Map* map, FrameBFS *bfs) {
-    bool wouldSplit = false;
-    if (CheckBlock(world,x+1,y) && x+1<CA::c_screenWidth) {
-        if (!bfs->canReachEdge(world,x+1,y)) {
-            // Create a rigid body from the 8x8 area instead of setting blocks
-            Physics::ShapeGrid newShape;
-            float pixelSize = 1;
-            newShape.pixelSize = pixelSize;
-            newShape.rotation = 0;
-            newShape.angularVelocity = 0;
-            newShape.mass = 1.0f;
-            newShape.restitution = 0.8f;
-            memset(newShape.grid, 0, sizeof(newShape.grid));
-            bool hasObjects = false;
-            int maxX = 0;
-            int maxY = 0;
-            for (int dy = 0; dy < Physics::MAX_SHAPE_SIZE; dy++) {
-                for (int dx = 0; dx < Physics::MAX_SHAPE_SIZE; dx++) {
-                    newShape.grid[dy][dx] = 0;
-                    if (CheckBlock(world, dx+x+1-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2)) {
-                        newShape.grid[dy][dx] = GetBlock(world,dx+x+1,dy+y-Physics::MAX_SHAPE_SIZE/2);
-                        SetBlock(world, dx+x+1-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2, 0);
-                        hasObjects = true;
-                        if (dx>maxX) maxX = dx;
-                        if (dy>maxY) maxY = dy;
-                        
-                    }
-                }
-            }
-            newShape.width = maxX;
-            newShape.height = maxY;
-            
-            newShape.CalculatePixels(world->materials);
-            newShape.x = x+maxX/2;
-            newShape.y = y+maxY/2;
-            newShape.id = (int)map->balls.size(); // You'll need access to map
-            newShape.x_vel = (float)GetRandomValue(-2, 2);
-            newShape.y_vel = (float)GetRandomValue(-5, -1);
-            newShape.held = false;
-            newShape.ownedByObject = false;
-            newShape.mass = newShape.pixelCount * 0.1f;
-            if (hasObjects) {
-                wouldSplit = true;
-                map->balls.push_back(newShape);
-            }
-        }
-    }
-    
-    if (CheckBlock(world,x,y+1) && y+1<CA::c_screenHeight) {
-        if (!bfs->canReachEdge(world,x,y+1)) {
-            bool hasObjects = false;
-            Physics::ShapeGrid newShape;
-            float pixelSize = 1;
-            newShape.pixelSize = pixelSize;
-            newShape.rotation = 0;
-            newShape.angularVelocity = 0;
-            newShape.mass = 1.0f;
-            newShape.restitution = 0.8f;
-            int maxX = 0;
-            int maxY = 0;
-            memset(newShape.grid, 0, sizeof(newShape.grid));
-            
-            for (int dy = 0; dy < Physics::MAX_SHAPE_SIZE; dy++) {
-                for (int dx = 0; dx < Physics::MAX_SHAPE_SIZE; dx++) {
-                    newShape.grid[dy][dx] = 0;
-                    if (CheckBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y+1-Physics::MAX_SHAPE_SIZE/2)) {
-                        newShape.grid[dy][dx] = GetBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y+1-Physics::MAX_SHAPE_SIZE/2);
-                        SetBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y+1-Physics::MAX_SHAPE_SIZE/2, 0);
-                        hasObjects = true;
-                        if (dx>maxX) maxX = dx;
-                        if (dy>maxY) maxY = dy;
-                    }
-                }
-            }
-            
-            newShape.width = maxX;
-            newShape.height = maxY;
-            newShape.CalculatePixels(world->materials);
-             newShape.x = x+maxX/2;
-            newShape.y = y+maxY/2;
-           newShape.id = (int)map->balls.size();
-            newShape.x_vel = (float)GetRandomValue(-2, 2);
-            newShape.y_vel = (float)GetRandomValue(-5, -1);
-            newShape.held = false;
-            newShape.ownedByObject = false;
-            newShape.mass = newShape.pixelCount * 0.1f;
-            
-            if (hasObjects) {
-                wouldSplit = true;
-                map->balls.push_back(newShape);
-            }
-        }
-    }
-    
-    if (CheckBlock(world,x-1,y) && x-1>=0) {
-        if (!bfs->canReachEdge(world,x-1,y)) {
-           bool hasObjects = false;
-             Physics::ShapeGrid newShape;
-            float pixelSize = 1;
-            int maxX = 0;
-            int maxY = 0;
-            newShape.pixelSize = pixelSize;
-            newShape.rotation = 0;
-            newShape.angularVelocity = 0;
-            newShape.mass = 1.0f;
-            newShape.restitution = 0.8f;
-            memset(newShape.grid, 0, sizeof(newShape.grid));
-            
-            for (int dy = 0; dy < Physics::MAX_SHAPE_SIZE; dy++) {
-                for (int dx = 0; dx < Physics::MAX_SHAPE_SIZE; dx++) {
-                    newShape.grid[dy][dx] = 0;
-                    if (CheckBlock(world, dx+x-1-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2)) {
-                        newShape.grid[dy][dx] = GetBlock(world, dx+x-1-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2);
-                        SetBlock(world, dx+x-1-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2, 0);
-                        hasObjects = true;
-                        if (dx>maxX) maxX = dx;
-                        if (dy>maxY) maxY = dy;
-                    }
-                }
-            }
-            
-            newShape.width = maxX;
-            newShape.height = maxY;
-            newShape.CalculatePixels(world->materials);
-            newShape.x = x+maxX/2;
-            newShape.y = y+maxY/2;
-            newShape.id = (int)map->balls.size();
-            newShape.x_vel = (float)GetRandomValue(-2, 2);
-            newShape.y_vel = (float)GetRandomValue(-5, -1);
-            newShape.held = false;
-            newShape.ownedByObject = false;
-            newShape.mass = newShape.pixelCount * 0.1f;
-            
-            if (hasObjects) {
-                wouldSplit = true;
-                map->balls.push_back(newShape);
-            }
-        }
-    }
-    
-    if (CheckBlock(world,x,y-1) && y-1>=0) {
-        if (!bfs->canReachEdge(world,x,y-1)) {
-            bool hasObjects = false;
-            Physics::ShapeGrid newShape;
-            float pixelSize = 1;
-            int maxX = 0;
-            int maxY = 0;
-            newShape.pixelSize = pixelSize;
-            newShape.rotation = 0;
-            newShape.angularVelocity = 0;
-            newShape.mass = 1.0f;
-            newShape.restitution = 0.8f;
-            memset(newShape.grid, 0, sizeof(newShape.grid));
-            
-            for (int dy = 0; dy < Physics::MAX_SHAPE_SIZE; dy++) {
-                for (int dx = 0; dx < Physics::MAX_SHAPE_SIZE; dx++) {
-                    newShape.grid[dy][dx] = 0;
-                    if (CheckBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y-1-Physics::MAX_SHAPE_SIZE/2)) {
-                        newShape.grid[dy][dx] = GetBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y-1-Physics::MAX_SHAPE_SIZE/2);
-                        SetBlock(world, dx+x-Physics::MAX_SHAPE_SIZE/2, dy+y-1-Physics::MAX_SHAPE_SIZE/2, 0);
-                        hasObjects = true;
-                        if (dx>maxX) maxX = dx;
-                        if (dy>maxY) maxY = dy;
-                    }
-                }
-            }
-            
-            newShape.width = maxX;
-            newShape.height = maxY;
-            newShape.CalculatePixels(world->materials);
-            newShape.x = x+maxX/2;
-            newShape.y = y+maxY/2;
-            newShape.id = (int)map->balls.size();
-            newShape.x_vel = (float)GetRandomValue(-2, 2);
-            newShape.y_vel = (float)GetRandomValue(-5, -1);
-            newShape.held = false;
-            newShape.ownedByObject = false;
-            newShape.mass = newShape.pixelCount * 0.1f;
-            
-            if (hasObjects) {
-                wouldSplit = true;
-                map->balls.push_back(newShape);
-            }
-        }
-    }
-    
-    return wouldSplit;
-}
 
 struct Player {
     Vector2 playerPosition;
@@ -548,6 +300,7 @@ struct Player {
                 bool wouldSplit = wouldSplitStructure(world, t.x, t.y, map,&bfs);
                 
                 if (wouldSplit) {
+                    if (CheckBlock(world,t.x,t.y)) {
                     for (int x = -32; x < 32; x++) {
                         for (int y = -32; y < 32; y++) {
                             if (CheckBlock(world,x+t.x,y+t.y)) {
@@ -555,7 +308,7 @@ struct Player {
                                 
                             }
                         }   
-                    }        
+                    }        }
                     std::cout<<"yeah, split\n"; 
                 }
             }
@@ -600,7 +353,39 @@ struct LightSource {
         }
     }
 };
-
+bool IsChunkConnectedToBoundary(int startX, int startY, CA::World* world) {
+    std::queue<std::pair<int,int>> toVisit;
+    bool visited[CA::c_screenWidth/CA::c_chunkSize][CA::c_screenHeight/CA::c_chunkSize] = {false};
+    
+    toVisit.push({startX, startY});
+    visited[startX][startY] = true;
+    
+    while (!toVisit.empty()) {
+        auto [cx, cy] = toVisit.front();
+        toVisit.pop();
+        
+        if (cx == 0 || cx == CA::c_screenWidth/CA::c_chunkSize - 1 ||
+            cy == 0 || cy == CA::c_screenHeight/CA::c_chunkSize - 1) {
+            return true;
+        }
+        
+        int neighbors[4][2] = {{-1,0}, {1,0}, {0,-1}, {0,1}};
+        for (int i = 0; i < 4; i++) {
+            int nx = cx + neighbors[i][0];
+            int ny = cy + neighbors[i][1];
+            if (!world->chunkMap[{nx, ny}].generated) return true;
+            if (nx >= 0 && nx < CA::c_screenWidth/CA::c_chunkSize && 
+                ny >= 0 && ny < CA::c_screenHeight/CA::c_chunkSize &&
+                world->chunkMap[{nx, ny}].containsData && 
+                !visited[nx][ny]) {
+                visited[nx][ny] = true;
+                toVisit.push({nx, ny});
+            }
+        }
+    }
+    
+    return false;
+}
 class App {
     CA::World world;
     Physics::Map* map;
@@ -783,7 +568,41 @@ public:
                 CA::c_screenHeight * player.cameraZoom,
                 WHITE
             );
-            
+            FrameBFS bfs;
+            for (int x = 0; x < CA::c_screenWidth/CA::c_chunkSize; x++) {
+                for (int y = 0; y < CA::c_screenHeight/CA::c_chunkSize; y++) {
+                    if (world.chunkMap[{x,y}].containsData) {
+                        //for sure disconnected
+                        
+                        bool leftConnected = (x > 0) ? world.chunkMap[{x-1,y}].containsData : world.chunkMap[{x,y}].onTheLeftEdge;
+                        bool rightConnected = (x < CA::c_screenWidth/CA::c_chunkSize - 1) ? world.chunkMap[{x+1,y}].containsData : world.chunkMap[{x,y}].onTheRighEdge;
+                        bool bottomConnected = (y > 0) ? world.chunkMap[{x,y-1}].containsData : world.chunkMap[{x,y}].onTheBottomEdge;
+                        bool topConnected = (y < CA::c_screenHeight/CA::c_chunkSize - 1) ? world.chunkMap[{x,y+1}].containsData : world.chunkMap[{x,y}].onTheUpEdge;
+                        
+                        if (!(leftConnected) && !rightConnected && !bottomConnected && !topConnected) {
+                            for (int dx = 0; dx < CA::c_chunkSize; dx++) {
+                                for (int dy = 0; dy < CA::c_chunkSize; dy++) {
+                                    if (CheckBlock(&world,dx+x*CA::c_chunkSize,dy+y*CA::c_chunkSize)) {
+                                        carveShape(0,0,dx+x*CA::c_chunkSize,dy+y*CA::c_chunkSize,&world,map);
+                                    }
+                                }   
+                            }
+                            
+                        }
+                        if (!leftConnected || !rightConnected || !bottomConnected || !topConnected) {
+                            if (!IsChunkConnectedToBoundary(x,y,&world)) {
+                                for (int dx = 0; dx < CA::c_chunkSize; dx++) {
+                                    for (int dy = 0; dy < CA::c_chunkSize; dy++) {
+                                        if (CheckBlock(&world,dx+x*CA::c_chunkSize,dy+y*CA::c_chunkSize)) {
+                                            carveShape(0,0,dx+x*CA::c_chunkSize,dy+y*CA::c_chunkSize,&world,map);
+                                        }
+                                    }   
+                                }
+                            }
+                        }
+                    }
+                }   
+            }
             player.Control(&world);
             player.Editor(&world,map);
             
@@ -824,7 +643,7 @@ public:
                 );
             }
             player.Draw();
-
+            world.DebugActivityDisplay(player.cameraPosition,player.cameraZoom);
             EndDrawing();
             
             frameEnd = std::chrono::high_resolution_clock::now();
