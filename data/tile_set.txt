@@ -137,7 +137,7 @@ leaveBehind = 9
 lifeTime = -1
 lightAbsorb = 98
 mass = 5
-
+grassBlades = true
 mud:
 falls = false
 goes_to_sides = false

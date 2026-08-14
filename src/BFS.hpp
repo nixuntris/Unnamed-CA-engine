@@ -3,15 +3,15 @@
 #include "Physics.hpp"
 
 inline bool CheckBlock(CA::World *world ,int x, int y) {
-    if (x<0 || x>CA::c_screenWidth || y<0 || y>CA::c_screenHeight) return true;
+    if (x<0 || x>=CA::c_screenWidth || y<0 || y>=CA::c_screenHeight) return true;
     return world->chunkMap[{x/CA::c_chunkSize,y/CA::c_chunkSize}].blocks[x%CA::c_chunkSize][y%CA::c_chunkSize].type!=0;
 }
 inline void SetBlock(CA::World *world ,int x, int y, uint8_t type) {
-    if (x<0 || x>CA::c_screenWidth || y<0 || y>CA::c_screenHeight) return;
+    if (x<0 || x>=CA::c_screenWidth || y<0 || y>=CA::c_screenHeight) return;
     world->chunkMap[{x/CA::c_chunkSize,y/CA::c_chunkSize}].blocks[x%CA::c_chunkSize][y%CA::c_chunkSize].type=type;
 }
 inline int  GetBlock(CA::World *world ,int x, int y) {
-    if (x<0 || x>CA::c_screenWidth || y<0 || y>CA::c_screenHeight) return 0;
+    if (x<0 || x>=CA::c_screenWidth || y<0 || y>=CA::c_screenHeight) return 0;
     return world->chunkMap[{x/CA::c_chunkSize,y/CA::c_chunkSize}].blocks[x%CA::c_chunkSize][y%CA::c_chunkSize].type;
 }
 class FrameBFS {
@@ -77,10 +77,13 @@ inline bool carveShape (int offsetX, int offsetY, int x, int y, CA::World *world
     for (int dy = 0; dy < Physics::MAX_SHAPE_SIZE; dy++) {
         for (int dx = 0; dx < Physics::MAX_SHAPE_SIZE; dx++) {
             newShape.grid[dx][dy] = 0;
-            if (CheckBlock(world, dx+x+offsetX-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2+offsetY)) {
-                newShape.grid[dx][dy] = GetBlock(world,dx+x+offsetX-Physics::MAX_SHAPE_SIZE/2,dy+y-Physics::MAX_SHAPE_SIZE/2+offsetY);
-                SetBlock(world, dx+x+offsetX-Physics::MAX_SHAPE_SIZE/2, dy+y-Physics::MAX_SHAPE_SIZE/2+offsetY, 0);
-                world->toBeUpdatedLine[dx] = true;
+            int worldX = dx+x+offsetX-Physics::MAX_SHAPE_SIZE/2;
+            int worldY = dy+y-Physics::MAX_SHAPE_SIZE/2+offsetY;
+            if (worldX<0 || worldX>=CA::c_screenWidth || worldY<0 || worldY>=CA::c_screenHeight) continue;
+            if (CheckBlock(world, worldX, worldY)) {
+                newShape.grid[dx][dy] = GetBlock(world,worldX,worldY);
+                SetBlock(world, worldX,worldY, 0);
+                world->toBeUpdatedLine[worldX] = true;
                 hasObjects = true;
 
                 if (dx>maxX) maxX = dx;
@@ -100,6 +103,7 @@ inline bool carveShape (int offsetX, int offsetY, int x, int y, CA::World *world
     newShape.y_vel = (float)GetRandomValue(-5, -1);
     newShape.held = false;
     newShape.ownedByObject = false;
+    newShape.canPickUp = true;
     newShape.mass = newShape.pixelCount * 0.1f;
     if (hasObjects) {
         map->balls.push_back(newShape);

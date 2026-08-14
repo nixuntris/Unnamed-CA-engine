@@ -8,10 +8,72 @@
 #include <cstring>
 namespace CA {
     
+    inline void DrawGrassBlade(float x, float y, float time, Vector2 cameraPosition, float zoom) {
+        float seed = sin(x * 127.1f + y * 311.7f) * 43758.5453f;
+        seed = seed - floor(seed);
+        
+        float height = (30.0f + seed * 40.0f) * zoom*0.05;
+        float width = (2.0f + seed * 2.0f) * zoom*0.05;
+        float curvature = (seed - 0.5f) * 0.8f;
+        float swayOffset = seed * 6.28f;
+        float swaySpeed = 0.5f + (seed * 0.5f);
+        
+        float sway = sin(time * swaySpeed + swayOffset) * 8.0f * zoom;
+        
+        Vector2 base = {
+            (x - cameraPosition.x) * zoom,
+            (y - cameraPosition.y) * zoom
+        };
+        
+        Vector2 mid = {
+            base.x + sway * 0.3f + curvature * height * 0.3f,
+            base.y - height * 0.5f
+        };
+        Vector2 tip = {
+            base.x + sway + curvature * height,
+            base.y - height
+        };
+        
+        int greenShade = 100 + (int)(seed * 80);
+        Color color = {30, greenShade, 20, 255};
+        Color tipColor = {60, greenShade + 30, 50, 255};
+        
+        float w = width;
+        DrawTriangle(
+            (Vector2){base.x - w, base.y},
+            (Vector2){base.x + w, base.y},
+            (Vector2){mid.x - w * 0.6f, mid.y},
+            color
+        );
+        DrawTriangle(
+            (Vector2){base.x + w, base.y},
+            (Vector2){mid.x + w * 0.6f, mid.y},
+            (Vector2){mid.x - w * 0.6f, mid.y},
+            color
+        );
+        DrawTriangle(
+            (Vector2){mid.x - w * 0.6f, mid.y},
+            (Vector2){mid.x + w * 0.6f, mid.y},
+            (Vector2){tip.x - w * 0.3f, tip.y},
+            tipColor
+        );
+        DrawTriangle(
+            (Vector2){mid.x + w * 0.6f, mid.y},
+            (Vector2){tip.x + w * 0.3f, tip.y},
+            (Vector2){tip.x - w * 0.3f, tip.y},
+            tipColor
+        );
+        DrawLineEx(
+            (Vector2){base.x + sway * 0.1f, base.y - height * 0.9f},
+            (Vector2){tip.x + sway * 0.1f, tip.y + 5 * zoom},
+            std::max(1.0f, zoom),
+            (Color){color.r + 40, color.g + 40, color.b + 40, 150}
+        );
+    }
     const int c_chunkSize = 40; //Size of each chunk in cells 
     const int c_sleepTime = 30; //Number of frames a chunk waits before going offline untill woken up by a neighbouring chunk
-    const int c_screenWidth = 1920*4; //World width
-    const int c_screenHeight = 1080*4; //World height. Both disconnected from what's in the rigid bodies file
+    const int c_screenWidth = 1920*8; //World width
+    const int c_screenHeight = 1080*8; //World height. 
     const int c_lightResolution = 2; 
     const int c_gridLightSize = c_chunkSize/c_lightResolution;
     
@@ -23,6 +85,7 @@ namespace CA {
 
    
     struct Tile {
+        bool grassBlades = false;
         std::string name;        // Display name of the tile
         int weight;              // Used for displacement (heavier sinks, lighter floats)
         bool gas;                // If true, moves upward (like smoke)
@@ -60,7 +123,7 @@ namespace CA {
         bool onTheRighEdge;
         bool onTheBottomEdge;
         bool onTheUpEdge;
-        
+        bool grassBlades=false;
         Cell topChunkDataCopy[c_chunkSize]; //Y+ Copy
         Cell bottomChunkDataCopy[c_chunkSize]; //Y- Copy
         Cell leftChunkDataCopy[c_chunkSize]; //X- copy
@@ -325,11 +388,14 @@ namespace CA {
             onTheUpEdge = false;
             onTheLeftEdge = false;
             onTheRighEdge = false;
+            cellCount = 0;
+            grassBlades = false;
             for (int y = c_chunkSize - 1; y >= 0; y--) {
                 for (int x = 0; x < c_chunkSize; x++) {
                     uint8_t type = blocks[x][y].type;
                     if (blocks[x][y].updated || type == 0)
                         continue;
+                    
                     if (type!=0) {
                         cellCount++;
                         containsData = true;
@@ -337,7 +403,9 @@ namespace CA {
                         if (x==0) onTheLeftEdge = true;
                         if (y==0) onTheUpEdge = true;
                         if (y==c_chunkSize-1) onTheBottomEdge = true;
-                        
+                        if (tiles[type].grassBlades) {
+                            grassBlades = true;
+                        }    
                     }
                     if (tiles[type].lifeTime!=-1) {
                         if (blocks[x][y].lifeTime<=0) {
@@ -441,7 +509,8 @@ namespace CA {
                 texture.height * zoom
             };
             DrawTexturePro(texture, sourceRect, destRect, Vector2{0, 0}, 0.0f, WHITE);
-            DrawRectangleLines(destRect.x,destRect.y,destRect.width,destRect.height,BLACK);
+            //DrawRectangleLines(destRect.x,destRect.y,destRect.width,destRect.height,BLACK);
+            
         }   
         inline void Update(Cell cells[c_chunkSize][c_chunkSize], std::vector<Tile> &tiles, bool renderLight) {
           Color* pixels = (Color*)image.data;  
@@ -599,6 +668,7 @@ namespace CA {
                     std::string v = trim(line.substr(sep + 1));
                     if (k == "weight") current->weight = std::stoi(v);
                     else if (k == "falls") current->falls = (v == "true");
+                    else if (k == "grassBlades") current->grassBlades = (v == "true");
                     else if (k == "gas") current->gas = (v == "true");
                     else if (k == "goes_to_sides") current->goesBothWays = (v == "true");
                     else if (k == "color") current->color = parseColor(v);

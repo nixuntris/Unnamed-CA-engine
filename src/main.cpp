@@ -17,7 +17,6 @@
 #include "BFS.hpp"
 const bool renderLight = true;
 
-
 struct Player {
     Vector2 playerPosition;
     Vector2 cameraPosition;
@@ -130,7 +129,11 @@ struct Player {
         if (it == world->chunkMap.end()) return false;
         
         uint8_t type = it->second.blocks[x % CA::c_chunkSize][y % CA::c_chunkSize].type;
-        return type != 0;
+        if (type==0) return false;
+        if (!world->materials[type].fluid) return true;
+
+
+        return false;
     }
 
     bool IsCollidingWithWorld(float px, float py, float width, float height, CA::World *world) {
@@ -259,9 +262,6 @@ struct Player {
                         if (chunkX < 0 || chunkX >= world->chunksX || chunkY < 0 || chunkY >= world->chunksY) continue;
                         world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].lifeTime = world->materials[choosen].lifeTime;
                         world->chunkMap[{chunkX, chunkY}].blocks[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize].type = choosen;
-                       // world->lightMap[{chunkX, chunkY}].rSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.r)/255.0f*4.0f;
-                       // world->lightMap[{chunkX, chunkY}].gSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.g)/255.0f*4.0f;
-                       // world->lightMap[{chunkX, chunkY}].bSource[updateX % CA::c_chunkSize][updateY % CA::c_chunkSize] += float(WHITE.b)/255.0f*4.0f;
                         
                         world->chunkMap[{chunkX, chunkY}].toBeUpdated = true;
                         world->chunkMap[{chunkX, chunkY}].lastUpdate = 0;
@@ -301,14 +301,17 @@ struct Player {
                 
                 if (wouldSplit) {
                     if (CheckBlock(world,t.x,t.y)) {
-                    for (int x = -32; x < 32; x++) {
-                        for (int y = -32; y < 32; y++) {
-                            if (CheckBlock(world,x+t.x,y+t.y)) {
-                                wouldSplitStructure(world, t.x+x, t.y+y, map,&bfs);
-                                
-                            }
-                        }   
-                    }        }
+                        for (int x = -64; x < 64; x++) {
+                            for (int y = -64; y < 64; y++) {
+                                if (CheckBlock(world,x+t.x,y+t.y)) {
+                                    if (!bfs.canReachEdge(world,x+t.x,y+t.y)) {
+                                        carveShape(0,0,t.x+x,t.y+y,world,map);
+                                    }
+                                }
+                            }   
+                        }       
+                     }
+
                     std::cout<<"yeah, split\n"; 
                 }
             }
@@ -353,39 +356,8 @@ struct LightSource {
         }
     }
 };
-bool IsChunkConnectedToBoundary(int startX, int startY, CA::World* world) {
-    std::queue<std::pair<int,int>> toVisit;
-    bool visited[CA::c_screenWidth/CA::c_chunkSize][CA::c_screenHeight/CA::c_chunkSize] = {false};
-    
-    toVisit.push({startX, startY});
-    visited[startX][startY] = true;
-    
-    while (!toVisit.empty()) {
-        auto [cx, cy] = toVisit.front();
-        toVisit.pop();
-        
-        if (cx == 0 || cx == CA::c_screenWidth/CA::c_chunkSize - 1 ||
-            cy == 0 || cy == CA::c_screenHeight/CA::c_chunkSize - 1) {
-            return true;
-        }
-        
-        int neighbors[4][2] = {{-1,0}, {1,0}, {0,-1}, {0,1}};
-        for (int i = 0; i < 4; i++) {
-            int nx = cx + neighbors[i][0];
-            int ny = cy + neighbors[i][1];
-            if (!world->chunkMap[{nx, ny}].generated) return true;
-            if (nx >= 0 && nx < CA::c_screenWidth/CA::c_chunkSize && 
-                ny >= 0 && ny < CA::c_screenHeight/CA::c_chunkSize &&
-                world->chunkMap[{nx, ny}].containsData && 
-                !visited[nx][ny]) {
-                visited[nx][ny] = true;
-                toVisit.push({nx, ny});
-            }
-        }
-    }
-    
-    return false;
-}
+
+
 class App {
     CA::World world;
     Physics::Map* map;
@@ -494,6 +466,23 @@ public:
             for (int x = beginX; x < endX; x++) {
                 for (int y = beginY; y < endY; y++) {
                     world.lightMap[{x,y}].Draw(x,y,player.cameraPosition,player.cameraZoom);
+                    if (world.chunkMap[{x,y}].grassBlades) {
+                        
+                        for (int dx =0 ; dx < CA::c_chunkSize; dx++) {
+                            for (int dy =0 ; dy < CA::c_chunkSize; dy++) {
+                                if (world.chunkMap[{x,y}].blocks[dx][dy].type!=0) {
+                                    if (world.chunkMap[{x,y}].blocks[dx][dy-1].type==0) {
+
+                                        if (world.materials[world.chunkMap[{x,y}].blocks[dx][dy].type].grassBlades) {
+                                            
+                                            CA::DrawGrassBlade(dx+x*CA::c_chunkSize,dy+y*CA::c_chunkSize,1,player.cameraPosition,player.cameraZoom);
+                                        }
+                                    }
+                                }
+                            }
+                        }    
+                    }
+                    
                 }
             }
             chunkGenEnd = std::chrono::high_resolution_clock::now();
@@ -568,42 +557,7 @@ public:
                 CA::c_screenHeight * player.cameraZoom,
                 WHITE
             );
-            FrameBFS bfs;
-            for (int x = 0; x < CA::c_screenWidth/CA::c_chunkSize; x++) {
-                for (int y = 0; y < CA::c_screenHeight/CA::c_chunkSize; y++) {
-                    if (world.chunkMap[{x,y}].containsData) {
-                        //for sure disconnected
-                        
-                        bool leftConnected = (x > 0) ? world.chunkMap[{x-1,y}].containsData : world.chunkMap[{x,y}].onTheLeftEdge;
-                        bool rightConnected = (x < CA::c_screenWidth/CA::c_chunkSize - 1) ? world.chunkMap[{x+1,y}].containsData : world.chunkMap[{x,y}].onTheRighEdge;
-                        bool bottomConnected = (y > 0) ? world.chunkMap[{x,y-1}].containsData : world.chunkMap[{x,y}].onTheBottomEdge;
-                        bool topConnected = (y < CA::c_screenHeight/CA::c_chunkSize - 1) ? world.chunkMap[{x,y+1}].containsData : world.chunkMap[{x,y}].onTheUpEdge;
-                        
-                        if (!(leftConnected) && !rightConnected && !bottomConnected && !topConnected) {
-                            for (int dx = 0; dx < CA::c_chunkSize; dx++) {
-                                for (int dy = 0; dy < CA::c_chunkSize; dy++) {
-                                    if (CheckBlock(&world,dx+x*CA::c_chunkSize,dy+y*CA::c_chunkSize)) {
-                                        carveShape(0,0,dx+x*CA::c_chunkSize,dy+y*CA::c_chunkSize,&world,map);
-                                    }
-                                }   
-                            }
-                            
-                        }
-                        if (!leftConnected || !rightConnected || !bottomConnected || !topConnected) {
-                            if (!IsChunkConnectedToBoundary(x,y,&world)) {
-                                for (int dx = 0; dx < CA::c_chunkSize; dx++) {
-                                    for (int dy = 0; dy < CA::c_chunkSize; dy++) {
-                                        if (CheckBlock(&world,dx+x*CA::c_chunkSize,dy+y*CA::c_chunkSize)) {
-                                            carveShape(0,0,dx+x*CA::c_chunkSize,dy+y*CA::c_chunkSize,&world,map);
-                                        }
-                                    }   
-                                }
-                            }
-                        }
-                    }
-                }   
-            }
-            player.Control(&world);
+            player.ControlGameplay(&world);
             player.Editor(&world,map);
             
             if (IsKeyDown(KEY_G)) {
@@ -614,6 +568,7 @@ public:
             }
             
             player.Draw();
+            
             DrawFPS(0, 0);
             drawEnd = std::chrono::high_resolution_clock::now();
             auto drawDuration = std::chrono::duration_cast<std::chrono::microseconds>(drawEnd - drawStart).count();
@@ -643,7 +598,7 @@ public:
                 );
             }
             player.Draw();
-            world.DebugActivityDisplay(player.cameraPosition,player.cameraZoom);
+            //world.DebugActivityDisplay(player.cameraPosition,player.cameraZoom);
             EndDrawing();
             
             frameEnd = std::chrono::high_resolution_clock::now();

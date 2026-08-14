@@ -166,13 +166,16 @@ CA::Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
                
             if (worldY > terrainHeight) {
                  chunk.blocks[x][y].type = 2*isCave; // Stone
+                chunk.cellCount++;
             }
             else if (worldY > terrainHeight - dirtDepth) {
                 chunk.blocks[x][y].type = 8*isCave; // Grass
+                chunk.cellCount++;
             }
             else if (worldY > terrainHeight - grassDepth - dirtDepth) {
                
                 chunk.blocks[x][y].type = 9*isCave; // Dirt
+                chunk.cellCount++;
             }
             else {
                 chunk.blocks[x][y].type = 0; // Air

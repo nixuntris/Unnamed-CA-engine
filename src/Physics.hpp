@@ -34,6 +34,7 @@ namespace Physics {
         float x_vel, y_vel;
         float rotation;    
         float angularVelocity;  
+        bool canPickUp = false;
         Color color;
         bool held;
         bool ownedByObject;
@@ -80,7 +81,7 @@ namespace Physics {
                 if (worldY > maxY) maxY = worldY;
             }
                         
-            AABB.x = minX-halfW;
+            AABB.x = minX-halfW; 
             AABB.y = minY-halfH;
             AABB.width = maxX - minX;
             AABB.height = maxY - minY;
@@ -141,13 +142,16 @@ namespace Physics {
                                 
                         float rx = dx * cosA - dy * sinA+x;
                         float ry = dx * sinA + dy * cosA+y;
-                        Color col = world->materials[grid[dx][dy]].color;
+                        if (rx>=0 && ry>=0 && rx<CA::c_screenWidth && ry<CA::c_screenHeight) {
 
-                        col.r = col.r * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].r[(int(rx)%CA::c_chunkSize)/CA::c_lightResolution][(int(ry)%CA::c_chunkSize)/CA::c_lightResolution])/255.0f;
-                        col.g = col.g * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].g[(int(rx)%CA::c_chunkSize)/CA::c_lightResolution][(int(ry)%CA::c_chunkSize)/CA::c_lightResolution])/255.0f;
-                        col.b = col.b * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].b[(int(rx)%CA::c_chunkSize)/CA::c_lightResolution][(int(ry)%CA::c_chunkSize)/CA::c_lightResolution])/255.0f;
-                        
-                        ImageDrawPixel(&image,dx,dy,col);
+                            Color col = world->materials[grid[dx][dy]].color;
+
+                            col.r = col.r * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].r[(int(rx)%CA::c_chunkSize)/CA::c_lightResolution][(int(ry)%CA::c_chunkSize)/CA::c_lightResolution])/255.0f;
+                            col.g = col.g * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].g[(int(rx)%CA::c_chunkSize)/CA::c_lightResolution][(int(ry)%CA::c_chunkSize)/CA::c_lightResolution])/255.0f;
+                            col.b = col.b * float(world->lightMap[{rx/CA::c_chunkSize,ry/CA::c_chunkSize}].b[(int(rx)%CA::c_chunkSize)/CA::c_lightResolution][(int(ry)%CA::c_chunkSize)/CA::c_lightResolution])/255.0f;
+                            
+                            ImageDrawPixel(&image,dx,dy,col);
+                        }
                     }
                     else {
                         ImageDrawPixel(&image,dx,dy,BLANK);
