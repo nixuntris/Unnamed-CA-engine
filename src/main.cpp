@@ -46,7 +46,7 @@ struct Player {
         if (IsKeyDown(KEY_W)) cameraPosition.y -= 5;
         if (IsKeyDown(KEY_S)) cameraPosition.y += 5;
     }
-    void ControlGameplay(CA::World *world) {
+    void ControlGameplay(CA::World *world, Physics::Map *map) {
         float wheel = GetMouseWheelMove();
         cameraZoom += wheel * 0.1f;
         
@@ -94,12 +94,14 @@ struct Player {
                 int checkY = (int)(playerPosition.y);
                 if (IsBlockSolid(checkX, checkY, world) || IsBlockSolid(checkX, checkY + playerHeight - 1, world)) {
                     playerPosition.x = floorf(playerPosition.x + playerWidth/2) - playerWidth/2;
+                    playerPosition.y -= 2;
                 }
             } else if (moveDir.x < 0) {
                 int checkX = (int)(playerPosition.x - playerWidth/2 - 1);
                 int checkY = (int)(playerPosition.y);
                 if (IsBlockSolid(checkX, checkY, world) || IsBlockSolid(checkX, checkY + playerHeight - 1, world)) {
                     playerPosition.x = ceilf(playerPosition.x - playerWidth/2) + playerWidth/2;
+                    playerPosition.y -= 2;
                 }
             }
         }
@@ -116,6 +118,18 @@ struct Player {
         }
         cameraPosition.x = playerPosition.x - w/(4);
         cameraPosition.y = playerPosition.y - h/(4);
+        
+        int cx = (int)(playerPosition.x / Physics::chunkSize);
+        int cy = (int)(playerPosition.y / Physics::chunkSize);
+        for (int i = 0; i < map->grid[cx][cy].count; i++) {
+            if (CheckCollisionRecs({playerPosition.x,playerPosition.y,16,16}, map->balls[map->grid[cx][cy].ids[i]].AABB)) {
+                 map->balls[map->grid[cx][cy].ids[i]].alive = false;
+            }
+            
+            
+
+        }
+
     }
     bool IsBlockSolid(int x, int y, CA::World *world) {
         if (x < 0 || x >= CA::c_screenWidth || y < 0 || y >= CA::c_screenHeight) return false;
@@ -392,7 +406,7 @@ public:
         std::chrono::high_resolution_clock::time_point chunkGenStart, chunkGenEnd;
         std::chrono::high_resolution_clock::time_point lightUpdateStart, lightUpdateEnd;
         std::chrono::high_resolution_clock::time_point drawStart, drawEnd;
-        
+        bool mode = false;
         while (!WindowShouldClose()) {
             frameStart = std::chrono::high_resolution_clock::now();
             BeginDrawing();
@@ -405,6 +419,7 @@ public:
                 for (int s = 0; s < subSteps; s++) {
                     
                         for (auto& ball : map->balls) {
+                            if (!ball.alive) continue;
                             if (!ball.held) {
                                 ball.y_vel += 0.5f / subSteps; 
                                 ball.x += ball.x_vel / subSteps;
@@ -416,6 +431,8 @@ public:
 
                     M_RecalculateGrid(map);
                     for (int i = 0; i < (int)map->balls.size(); i++) {
+                        if (!map->balls[i].alive) continue;
+
                         map->balls[i].angularVelocity *= 0.98;
                         En_CollisionBall(i, map, &world);
                     }
@@ -492,6 +509,7 @@ public:
             if (frame%3==0) {
                 
                 for (int i = 0; i < (int)map->balls.size(); i++) {
+                    if (!map->balls[i].alive) continue;
                     memset(map->balls[i].cleanOut,false,sizeof(map->balls[i].cleanOut));
                     float cosA = cosf(map->balls[i].rotation);
                     float sinA = sinf(map->balls[i].rotation);
@@ -529,6 +547,7 @@ public:
                 world.UpdateLighting(world.materials,player.cameraPosition,{(float)GetScreenWidth(),(float)GetScreenHeight()});
                 
                 for (int i = 0; i < (int)map->balls.size(); i++) {
+                    if (!map->balls[i].alive) continue;
                     float cosA = cosf(map->balls[i].rotation);
                     float sinA = sinf(map->balls[i].rotation);
                     for (int dy = 0; dy < map->balls[i].height; dy++) {
@@ -557,7 +576,13 @@ public:
                 CA::c_screenHeight * player.cameraZoom,
                 WHITE
             );
-            player.ControlGameplay(&world);
+            if (mode) {
+                player.ControlGameplay(&world,map);
+                            
+            }
+            else {
+                player.Control(&world);
+            }
             player.Editor(&world,map);
             
             if (IsKeyDown(KEY_G)) {
@@ -568,11 +593,12 @@ public:
             }
             
             player.Draw();
-            
-            DrawFPS(0, 0);
+            DrawText(TextFormat("FPS: %d",GetFPS()),0,0,25,BLACK);
+            DrawText("Switch mode with N", 0,25,25,BLACK);
             drawEnd = std::chrono::high_resolution_clock::now();
             auto drawDuration = std::chrono::duration_cast<std::chrono::microseconds>(drawEnd - drawStart).count();
             for (auto& b : map->balls) {
+                if (!b.alive) continue;
                 float screenX = (b.x - player.cameraPosition.x) * player.cameraZoom;
                 float screenY = (b.y - player.cameraPosition.y) * player.cameraZoom;
                 

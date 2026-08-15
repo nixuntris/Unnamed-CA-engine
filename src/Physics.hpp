@@ -54,6 +54,7 @@ namespace Physics {
         float momentOfInertia;  
         Texture texture;
         Vector2 ballPixels[MAX_PIXELS];
+        bool alive = true;
         Image image;
         void CalculateAABB() {
             
@@ -190,6 +191,7 @@ namespace Physics {
         }
 
         for (int i = 0; i < (int)map->balls.size(); i++) {
+            if (!map->balls[i].alive) continue;
             int cx = (int)(map->balls[i].x / chunkSize);
             int cy = (int)(map->balls[i].y / chunkSize);
             if (cx >= 0 && cx < GRID_W && cy >= 0 && cy < GRID_H) {
@@ -215,6 +217,7 @@ namespace Physics {
                 Chunk& chunk = map->grid[nx][ny];
                 for (int i = 0; i < chunk.count; i++) {
                     ShapeGrid& other = map->balls[chunk.ids[i]];
+                    if (!other.alive) continue;
                     if (other.id <= ball.id) continue;
                         
                     if (!CheckCollisionRecs(ball.AABB, other.AABB)) continue;

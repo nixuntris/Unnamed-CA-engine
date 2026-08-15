@@ -72,8 +72,8 @@ namespace CA {
     }
     const int c_chunkSize = 40; //Size of each chunk in cells 
     const int c_sleepTime = 30; //Number of frames a chunk waits before going offline untill woken up by a neighbouring chunk
-    const int c_screenWidth = 1920*8; //World width
-    const int c_screenHeight = 1080*8; //World height. 
+    const int c_screenWidth = 1920*4; //World width
+    const int c_screenHeight = 1080*4; //World height. 
     const int c_lightResolution = 2; 
     const int c_gridLightSize = c_chunkSize/c_lightResolution;
     

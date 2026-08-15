@@ -1,7 +1,6 @@
 #pragma once
 #include "Chunk.hpp"
 #include "raylib.h"
-
 CA::Chunk GenCleanChunk(int cx, int cy, bool genCleanImage=false) {
     CA::Chunk chunk;
     chunk.toBeUpdated = false;
@@ -152,7 +151,7 @@ CA::Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
         float heightNoise = GetImageColor(heightMap, x, 0).r / 255.0f;
 
         const int baseHeight = 300;
-        const int amplitude = 50;
+        const int amplitude = 25;
 
         const int grassDepth = 3;   // 3 pixels of grass
         const int dirtDepth = 6;    // 6 pixels of dirt below the grass
@@ -181,6 +180,7 @@ CA::Chunk GenCleanChunkTerrain(int cx, int cy, bool genCleaImage= false) {
                 chunk.blocks[x][y].type = 0; // Air
             }
         }
+        
     }
     return chunk;
 }
